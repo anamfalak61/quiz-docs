@@ -1,0 +1,212 @@
+import { Callout, Steps } from 'nextra/components'
+
+# UI & Styling
+
+In this guide we build the look of the Quiz App: a responsive layout, category cards, a question card and answer buttons, all with **Tailwind CSS**.
+
+<Callout type="info">
+  Complete the [Setup guide](/setup/folder-structure) first and install the icon library: `npm install lucide-react`
+</Callout>
+
+## 1. Page layout
+
+The rule is simple: content is centered, full width on mobile, and limited by `max-w` on large screens.
+
+```tsx filename="app/layout.tsx"
+import type { ReactNode } from 'react'
+import './globals.css'
+
+export const metadata = {
+  title: 'Quiz App',
+  description: 'Test your knowledge',
+}
+
+export default function RootLayout({ children }: { children: ReactNode }) {
+  return (
+    <html lang="en">
+      <body className="min-h-screen bg-slate-50 text-slate-900">
+        <main className="mx-auto w-full max-w-3xl px-4 py-8 sm:py-12">
+          {children}
+        </main>
+      </body>
+    </html>
+  )
+}
+```
+
+| Class | Purpose |
+| --- | --- |
+| `min-h-screen` | Page is at least as tall as the screen |
+| `max-w-3xl` | Limits content width on large screens |
+| `mx-auto` | Centers the content |
+| `px-4 py-8 sm:py-12` | Small spacing on mobile, larger on bigger screens |
+
+## 2. Category icons
+
+Each category gets an icon. We keep this data in one file so the components stay clean.
+
+```ts filename="lib/categories.ts"
+import {
+  BookOpen,
+  Calculator,
+  FlaskConical,
+  Film,
+  Globe,
+  Landmark,
+  Laptop,
+  Map,
+  Music,
+  Trophy,
+  type LucideIcon,
+} from 'lucide-react'
+
+export interface Category {
+  id: number
+  name: string
+  icon: LucideIcon
+}
+
+export const CATEGORIES: Category[] = [
+  { id: 9, name: 'General Knowledge', icon: Globe },
+  { id: 10, name: 'Books', icon: BookOpen },
+  { id: 11, name: 'Film', icon: Film },
+  { id: 12, name: 'Music', icon: Music },
+  { id: 17, name: 'Science & Nature', icon: FlaskConical },
+  { id: 18, name: 'Computers', icon: Laptop },
+  { id: 19, name: 'Mathematics', icon: Calculator },
+  { id: 21, name: 'Sports', icon: Trophy },
+  { id: 22, name: 'Geography', icon: Map },
+  { id: 23, name: 'History', icon: Landmark },
+]
+```
+
+<Callout type="info">
+  These `id` numbers are the category ids used by the Open Trivia DB API, so do not change them.
+</Callout>
+
+## 3. Category cards
+
+This grid shows 2 columns on mobile, 3 on tablet and 4 on desktop.
+
+```tsx filename="components/CategorySelect.tsx"
+'use client'
+
+import { CATEGORIES } from '@/lib/categories'
+
+interface CategorySelectProps {
+  selectedId: number | null
+  onSelect: (id: number) => void
+}
+
+export default function CategorySelect({ selectedId, onSelect }: CategorySelectProps) {
+  return (
+    <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4">
+      {CATEGORIES.map(({ id, name, icon: Icon }) => {
+        const isSelected = id === selectedId
+        return (
+          <button
+            key={id}
+            type="button"
+            onClick={() => onSelect(id)}
+            className={`flex flex-col items-center gap-2 rounded-xl border p-4 text-sm font-medium transition
+              ${isSelected
+                ? 'border-violet-600 bg-violet-50 text-violet-700'
+                : 'border-slate-200 bg-white hover:border-violet-300 hover:shadow-sm'}`}
+          >
+            <Icon className="h-6 w-6" aria-hidden="true" />
+            {name}
+          </button>
+        )
+      })}
+    </div>
+  )
+}
+```
+
+<Callout type="warning">
+  Tailwind cannot detect dynamic class names such as `` `bg-${color}-50` ``. Always write the full class name, like `bg-violet-50` above.
+</Callout>
+
+## 4. Question card
+
+```tsx filename="components/QuestionCard.tsx"
+'use client'
+
+interface QuestionCardProps {
+  question: string
+  options: string[]
+  selected: string | null
+  correctAnswer: string
+  onAnswer: (answer: string) => void
+}
+
+export default function QuestionCard({
+  question,
+  options,
+  selected,
+  correctAnswer,
+  onAnswer,
+}: QuestionCardProps) {
+  const answered = selected !== null
+
+  const optionStyle = (option: string) => {
+    if (!answered) return 'border-slate-200 bg-white hover:border-violet-400'
+    if (option === correctAnswer) return 'border-green-500 bg-green-50 text-green-800'
+    if (option === selected) return 'border-red-500 bg-red-50 text-red-800'
+    return 'border-slate-200 bg-white opacity-60'
+  }
+
+  return (
+    <section className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
+      <h2 className="mb-5 text-lg font-semibold sm:text-xl">{question}</h2>
+
+      <ul className="space-y-3">
+        {options.map((option) => (
+          <li key={option}>
+            <button
+              type="button"
+              disabled={answered}
+              onClick={() => onAnswer(option)}
+              className={`w-full rounded-lg border px-4 py-3 text-left transition ${optionStyle(option)}`}
+            >
+              {option}
+            </button>
+          </li>
+        ))}
+      </ul>
+    </section>
+  )
+}
+```
+
+The card has three states:
+
+| State | Style |
+| --- | --- |
+| Not answered yet | White, violet border on hover |
+| Correct answer | Green |
+| Wrong selected answer | Red |
+
+## 5. Check responsiveness
+
+Open browser DevTools (**F12**), toggle the device toolbar, and test these three sizes:
+
+<Steps>
+
+### Mobile (375px)
+
+The category grid has 2 columns and buttons use the full width.
+
+### Tablet (768px)
+
+The grid has 3 columns with more space around the card.
+
+### Desktop (1280px)
+
+The grid has 4 columns and the content stays centered at `max-w-3xl`.
+
+</Steps>
+
+<Callout type="info">
+  Next: the [Implementation guide](/guides/implementation), where we fetch questions from the API and build loading and error states.
+</Callout>

@@ -2,20 +2,20 @@ import { Callout } from 'nextra/components'
 
 # TypeScript Setup
 
-Hum **strict mode** use karenge, taake galtiyan code chalane se pehle hi pakri jayen.
+We use **strict mode** so that mistakes are caught before the app runs.
 
-## Project banao
+## Create the project
 
 ```bash
 npx create-next-app@latest quiz-app --typescript --tailwind --app --eslint
 cd quiz-app
 ```
 
-Ye command TypeScript, Tailwind CSS aur App Router khud setup kar deti hai.
+This command sets up TypeScript, Tailwind CSS and the App Router for you.
 
-## Strict mode check karo
+## Check strict mode
 
-`tsconfig.json` kholo aur dekho ke `strict` true hai:
+Open `tsconfig.json` and make sure `strict` is `true`:
 
 ```json filename="tsconfig.json"
 {
@@ -30,13 +30,13 @@ Ye command TypeScript, Tailwind CSS aur App Router khud setup kar deti hai.
 }
 ```
 
-- `strict: true` sab zaroori type checks on karta hai.
-- `noUncheckedIndexedAccess` array se item uthate waqt `undefined` ka check force karta hai (jaise `questions[0]`).
-- `@/*` import alias hai, is se `import { Question } from '@/lib/types'` likh sakte ho.
+- `strict: true` turns on all important type checks.
+- `noUncheckedIndexedAccess` forces you to handle `undefined` when reading from arrays, such as `questions[0]`.
+- `@/*` is an import alias, so you can write `import { Question } from '@/lib/types'`.
 
-## Pehle types likho
+## Write the types first
 
-API ka jawab kaisa hoga, ye pehle type mein likh do:
+Describe the shape of the API response before writing any other code:
 
 ```ts filename="lib/types.ts"
 export interface Question {
@@ -55,5 +55,5 @@ export interface ApiResponse {
 ```
 
 <Callout type="warning">
-  `any` type use mat karo. Agar API ka jawab kisi type mein fit nahi ho raha, to type theek karo, usay `any` bana ke chupao mat.
+  Avoid the `any` type. If the API response does not fit a type, fix the type instead of hiding the problem with `any`.
 </Callout>

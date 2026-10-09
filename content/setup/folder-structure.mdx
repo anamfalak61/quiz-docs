@@ -2,16 +2,13 @@ import { Callout, FileTree } from 'nextra/components'
 
 # Folder Structure
 
-Quiz App ka project is tarah organized hoga. Har folder ka ek clear kaam hai, is se code samajhna aur badalna aasan rehta hai.
+The Quiz App is organized so that every folder has one clear job. This makes the code easier to read and easier to change.
 
 <FileTree>
   <FileTree.Folder name="quiz-app" defaultOpen>
     <FileTree.Folder name="app" defaultOpen>
       <FileTree.File name="layout.tsx" />
       <FileTree.File name="page.tsx" />
-      <FileTree.Folder name="quiz">
-        <FileTree.File name="page.tsx" />
-      </FileTree.Folder>
     </FileTree.Folder>
     <FileTree.Folder name="components" defaultOpen>
       <FileTree.File name="CategorySelect.tsx" />
@@ -20,6 +17,7 @@ Quiz App ka project is tarah organized hoga. Har folder ka ek clear kaam hai, is
     </FileTree.Folder>
     <FileTree.Folder name="lib" defaultOpen>
       <FileTree.File name="api.ts" />
+      <FileTree.File name="categories.ts" />
       <FileTree.File name="types.ts" />
     </FileTree.Folder>
     <FileTree.File name=".env.local" />
@@ -27,16 +25,16 @@ Quiz App ka project is tarah organized hoga. Har folder ka ek clear kaam hai, is
   </FileTree.Folder>
 </FileTree>
 
-## Kaun sa folder kya karta hai
+## What each folder does
 
-| Folder / File | Kaam |
+| Folder / File | Purpose |
 | --- | --- |
-| `app/` | Pages aur layout (Next.js App Router) |
-| `components/` | Dobara use hone wale UI pieces (card, buttons) |
-| `lib/api.ts` | API se data lane wala code |
+| `app/` | Pages and layout (Next.js App Router) |
+| `components/` | Reusable UI pieces such as cards and buttons |
+| `lib/api.ts` | Code that fetches data from the API |
 | `lib/types.ts` | TypeScript types (`Question`, `ApiResponse`) |
-| `.env.local` | Secret values aur settings, GitHub par nahi jati |
+| `.env.local` | Settings and secrets, never committed to Git |
 
 <Callout type="info">
-  API wala code aur UI alag rakhna ek achhi aadat hai. Is se agar API badle to sirf `lib/api.ts` badalni parti hai.
+  Keeping API code separate from UI code is a good habit. If the API changes, you only update `lib/api.ts`.
 </Callout>

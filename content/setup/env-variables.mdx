@@ -2,24 +2,24 @@ import { Callout } from 'nextra/components'
 
 # Environment Variables
 
-Settings aur secret keys ko code mein seedha likhna khatarnak hai. Unhein `.env.local` file mein rakhte hain.
+Settings and secret keys should never be written directly in your code. Store them in a `.env.local` file instead.
 
-## `.env.local` banao
+## Create `.env.local`
 
-Project ke root mein (`package.json` ke saath) ye file banao:
+In the project root (next to `package.json`), create this file:
 
 ```bash filename=".env.local"
 NEXT_PUBLIC_TRIVIA_API_URL=https://opentdb.com/api.php
 ```
 
-Open Trivia DB ko API key nahi chahiye, is liye yahan sirf base URL hai. Lekin agar koi API key mangti ho to usay is tarah rakho:
+The Open Trivia DB API does not need an API key, so this file only holds the base URL. If an API does require a key, store it like this:
 
 ```bash filename=".env.local"
-# Prefix nahi hai, to ye sirf server par available hai (safe)
+# No NEXT_PUBLIC_ prefix, so this is only available on the server (safe)
 SECRET_API_KEY=your_key_here
 ```
 
-## Code mein kaise use karein
+## Use it in code
 
 ```ts filename="lib/api.ts"
 const BASE_URL = process.env.NEXT_PUBLIC_TRIVIA_API_URL
@@ -29,20 +29,20 @@ if (!BASE_URL) {
 }
 ```
 
-## `NEXT_PUBLIC_` ka matlab
+## What `NEXT_PUBLIC_` means
 
-| Naam | Kahan dikhta hai |
+| Name | Where it is visible |
 | --- | --- |
-| `NEXT_PUBLIC_API_URL` | Browser mein bhi (sab dekh sakte hain) |
-| `SECRET_API_KEY` | Sirf server par (safe) |
+| `NEXT_PUBLIC_API_URL` | In the browser too (anyone can see it) |
+| `SECRET_API_KEY` | Server only (safe) |
 
 <Callout type="warning">
-  Secret key par kabhi `NEXT_PUBLIC_` mat lagao. Wo browser ke code mein chali jati hai aur koi bhi usay dekh sakta hai.
+  Never add the `NEXT_PUBLIC_` prefix to a secret key. It would be bundled into the browser code and anyone could read it.
 </Callout>
 
-## GitHub par mat jane do
+## Keep it out of Git
 
-`create-next-app` ki `.gitignore` mein `.env*` pehle se hota hai, phir bhi check kar lo. Is ke badle ek `.env.example` file commit karo, jis mein values na hon:
+The `.gitignore` created by `create-next-app` already ignores `.env*` files, but double-check it. Commit a `.env.example` file instead, with the variable names and no values:
 
 ```bash filename=".env.example"
 NEXT_PUBLIC_TRIVIA_API_URL=
@@ -50,5 +50,5 @@ SECRET_API_KEY=
 ```
 
 <Callout type="info">
-  `.env.local` badalne ke baad dev server band karke dobara `npm run dev` chalao, warna nayi value nahi milti.
+  After changing `.env.local`, stop the dev server and run `npm run dev` again. Otherwise the new value will not load.
 </Callout>
