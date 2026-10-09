@@ -1,0 +1,42 @@
+import { Callout, FileTree } from 'nextra/components'
+
+# Folder Structure
+
+Quiz App ka project is tarah organized hoga. Har folder ka ek clear kaam hai, is se code samajhna aur badalna aasan rehta hai.
+
+<FileTree>
+  <FileTree.Folder name="quiz-app" defaultOpen>
+    <FileTree.Folder name="app" defaultOpen>
+      <FileTree.File name="layout.tsx" />
+      <FileTree.File name="page.tsx" />
+      <FileTree.Folder name="quiz">
+        <FileTree.File name="page.tsx" />
+      </FileTree.Folder>
+    </FileTree.Folder>
+    <FileTree.Folder name="components" defaultOpen>
+      <FileTree.File name="CategorySelect.tsx" />
+      <FileTree.File name="QuestionCard.tsx" />
+      <FileTree.File name="ScoreHistory.tsx" />
+    </FileTree.Folder>
+    <FileTree.Folder name="lib" defaultOpen>
+      <FileTree.File name="api.ts" />
+      <FileTree.File name="types.ts" />
+    </FileTree.Folder>
+    <FileTree.File name=".env.local" />
+    <FileTree.File name="tsconfig.json" />
+  </FileTree.Folder>
+</FileTree>
+
+## Kaun sa folder kya karta hai
+
+| Folder / File | Kaam |
+| --- | --- |
+| `app/` | Pages aur layout (Next.js App Router) |
+| `components/` | Dobara use hone wale UI pieces (card, buttons) |
+| `lib/api.ts` | API se data lane wala code |
+| `lib/types.ts` | TypeScript types (`Question`, `ApiResponse`) |
+| `.env.local` | Secret values aur settings, GitHub par nahi jati |
+
+<Callout type="info">
+  API wala code aur UI alag rakhna ek achhi aadat hai. Is se agar API badle to sirf `lib/api.ts` badalni parti hai.
+</Callout>

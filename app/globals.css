@@ -1,4 +1,8 @@
 /* DevoraCamp theme (light mode) */
+:root {
+  --nextra-primary-hue: 258deg;
+  --nextra-primary-saturation: 70%;
+}
 :root:not(.dark) {
   --nextra-bg: 248, 249, 255; /* #f8f9ff */
   --devora-text: #0b1c30;

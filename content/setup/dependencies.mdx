@@ -1,0 +1,41 @@
+import { Callout } from 'nextra/components'
+
+# Dependencies
+
+Is project ko bohat kam packages chahiye.
+
+## Jo `create-next-app` pehle se laata hai
+
+| Package | Kaam |
+| --- | --- |
+| `next`, `react`, `react-dom` | Framework |
+| `typescript`, `@types/*` | TypeScript support |
+| `tailwindcss` | Styling |
+| `eslint` | Code quality check |
+
+## Extra packages (optional)
+
+```bash
+npm install axios lucide-react
+```
+
+| Package | Kaam |
+| --- | --- |
+| `axios` | `fetch` ka alternative, error handling thori aasan |
+| `lucide-react` | Category icons |
+
+<Callout type="info">
+  `axios` zaroori nahi hai. Is guide mein hum pehle built-in `fetch` use karenge, aur `axios` ka version bhi dikhayenge.
+</Callout>
+
+## Chalao
+
+```bash
+npm run dev
+```
+
+`http://localhost:3000` kholo. Next.js ka default page nazar aaye to setup mukammal hai.
+
+## Aage kya
+
+Ab Setup khatam. Agla step [UI & Styling](/guides/ui-styling) hai, jahan hum Tailwind se cards aur layout banayenge.
