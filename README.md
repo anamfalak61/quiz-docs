@@ -1,36 +1,66 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Quiz App Documentation
 
-## Getting Started
+A step-by-step documentation site that teaches how to build a Quiz App with Next.js (App Router), TypeScript and Tailwind CSS. Built with [Nextra](https://nextra.site).
 
-First, run the development server:
+**Live site:** ADD_YOUR_VERCEL_LINK_HERE
+
+## Features
+
+- Docs layout with sidebar, header, search and on-page table of contents
+- Setup, UI & Styling and Implementation guides
+- Syntax-highlighted code blocks with copy buttons
+- Tip and warning callouts
+- Embedded live demo
+- Code Reference and Troubleshooting pages
+- Responsive on mobile, tablet and desktop
+
+## Tech stack
+
+- Next.js (App Router)
+- TypeScript
+- Tailwind CSS
+- Nextra 4 (`nextra`, `nextra-theme-docs`)
+
+## Getting started
+
+Requirements: Node.js 18 or newer.
 
 ```bash
+git clone https://github.com/anamfalak61/quiz-docs.git
+cd quiz-docs
+npm install
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Open [http://localhost:3000](http://localhost:3000).
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+## Scripts
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+| Command | Description |
+| --- | --- |
+| `npm run dev` | Start the development server |
+| `npm run build` | Create a production build |
+| `npm run start` | Run the production build |
 
-## Learn More
+## Project structure
 
-To learn more about Next.js, take a look at the following resources:
+```text
+app/            Layout and the Nextra catch-all page
+content/        Documentation pages (.mdx) and _meta.js navigation files
+components/     React components used inside the docs (LiveDemo)
+mdx-components.tsx
+next.config.mjs
+```
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+## Adding a page
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+1. Create a `.mdx` file in `content/`.
+2. Add its title to the `_meta.js` file in the same folder.
 
-## Deploy on Vercel
+## Note on dependencies
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+`package.json` pins `zod` to `4.3.6` with `overrides`. Nextra 4.6.1 breaks with Zod 4.4.x ("expected nonoptional, received undefined at children"). Remove the override once Nextra ships the fix.
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+## Deployment
+
+Deploy on Vercel: import the repository and keep the default Next.js settings.
