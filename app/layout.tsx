@@ -1,9 +1,17 @@
 import { Footer, Layout, Navbar } from 'nextra-theme-docs'
 import { Head } from 'nextra/components'
 import { getPageMap } from 'nextra/page-map'
+import { Poppins } from 'next/font/google'
 import 'nextra-theme-docs/style.css'
 import './globals.css'
+import Logo from '../components/Logo'
 import type { ReactNode } from 'react'
+
+const poppins = Poppins({
+  subsets: ['latin'],
+  weight: ['400', '500', '600', '700', '800'],
+  variable: '--font-poppins',
+})
 
 export const metadata = {
   title: 'Quiz App Docs',
@@ -12,14 +20,15 @@ export const metadata = {
 
 export default async function RootLayout({ children }: { children: ReactNode }) {
   return (
-    <html lang="en" dir="ltr" suppressHydrationWarning>
+    <html lang="en" dir="ltr" className={poppins.variable} suppressHydrationWarning>
       <Head />
       <body>
         <Layout
-          navbar={<Navbar logo={<b>Quiz App Docs</b>} />}
+          navbar={<Navbar logo={<Logo />} />}
           pageMap={await getPageMap()}
           docsRepositoryBase="https://github.com/anamfalak61/quiz-docs/tree/main"
           footer={<Footer>Quiz App Docs {new Date().getFullYear()}</Footer>}
+          nextThemes={{ defaultTheme: 'light' }}
         >
           {children}
         </Layout>

@@ -1,11 +1,17 @@
-/* DevoraCamp theme (light mode) */
 :root {
   --nextra-primary-hue: 258deg;
-  --nextra-primary-saturation: 70%;
+  --nextra-primary-saturation: 67%;
+  --devora-accent: #6d3fd9;
+  --devora-text: #0b1c30;
 }
+
 :root:not(.dark) {
   --nextra-bg: 248, 249, 255; /* #f8f9ff */
-  --devora-text: #0b1c30;
+}
+
+html,
+body {
+  font-family: var(--font-poppins), system-ui, sans-serif;
 }
 
 html:not(.dark) body {
@@ -14,5 +20,53 @@ html:not(.dark) body {
 }
 
 html:not(.dark) :is(h1, h2, h3, h4, h5, h6) {
+  color: var(--devora-text);
+}
+
+h1 {
+  font-weight: 800;
+  letter-spacing: -0.02em;
+}
+
+/* ---- Purple accents (light mode only) ---- */
+
+/* Text selection */
+::selection {
+  background: rgba(109, 63, 217, 0.22);
+}
+
+/* Inline code like `fetchQuestions` */
+html:not(.dark) main :not(pre) > code {
+  background: #efe9ff;
+  color: #5b2fc4;
+  border-radius: 6px;
+}
+
+/* Bold text */
+html:not(.dark) main strong {
+  color: #5b2fc4;
+}
+
+/* Table headers and borders */
+html:not(.dark) main th {
+  background: #efe9ff;
+  color: var(--devora-text);
+}
+
+html:not(.dark) main th,
+html:not(.dark) main td {
+  border-color: #ddd2fa;
+}
+
+/* Blockquotes */
+html:not(.dark) main blockquote {
+  border-left: 4px solid var(--devora-accent);
+  background: #f3efff;
+  border-radius: 0 8px 8px 0;
+}
+
+/* Footer */
+html:not(.dark) footer {
+  background: #efe9ff;
   color: var(--devora-text);
 }
