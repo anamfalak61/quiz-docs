@@ -1,0 +1,90 @@
+import { Callout } from 'nextra/components'
+
+# Troubleshooting
+
+Common errors and how to fix them.
+
+## API response codes
+
+The Open Trivia DB can answer with **HTTP 200** and still report a problem in `response_code`.
+
+| Code | Meaning | Fix |
+| --- | --- | --- |
+| `0` | Success | Nothing to fix |
+| `1` | No results | The category has too few questions. Choose another category or lower `amount` |
+| `2` | Invalid parameter | Check `amount`, `category` and `type` in the URL |
+| `3` | Token not found | You used a session token that does not exist. Request a new one |
+| `4` | Token empty | All questions were already used. Reset the token |
+| `5` | Rate limit | Wait 5 seconds and try again |
+
+## HTTP errors
+
+| Status | Cause | Fix |
+| --- | --- | --- |
+| `401` | Missing or invalid API key | Check the key in `.env.local` and restart the dev server |
+| `404` | Wrong URL | Check `NEXT_PUBLIC_TRIVIA_API_URL` for typos |
+| `429` | Too many requests | Wait a few seconds. Do not retry in a loop |
+| `500` and above | Server problem | Try again later. It is not your code |
+
+<Callout type="info">
+  The Open Trivia DB does not use API keys, so you will not see `401` with it. Handling `401` is still good practice, because you will meet it with most other APIs.
+</Callout>
+
+## Handling 401 and 404 in code
+
+Extend the status handler in `lib/api.ts` so each error gets a clear message:
+
+```ts filename="lib/api.ts"
+function messageForStatus(status: number): string {
+  switch (status) {
+    case 401:
+      return 'Unauthorized. Check that your API key is correct.'
+    case 404:
+      return 'The quiz service could not be found. Check the API URL.'
+    case 429:
+      return 'Too many requests. Please wait a few seconds and try again.'
+    default:
+      return status >= 500
+        ? 'The quiz service is having problems. Please try again later.'
+        : `Request failed with status ${status}.`
+  }
+}
+```
+
+<Callout type="warning">
+  `fetch` only throws on network failures. It does **not** throw on 401 or 404, so always check `response.ok` before reading the body.
+</Callout>
+
+## Common problems
+
+### "API URL is missing"
+
+`.env.local` is missing, misspelled, or the dev server was not restarted. The variable must be named exactly `NEXT_PUBLIC_TRIVIA_API_URL`. Stop the server and run `npm run dev` again.
+
+### Questions show `&quot;` or `&#039;`
+
+The request is missing `encode=url3986`, or the text is not decoded. Use `decodeURIComponent` on every text field, as `decodeQuestion` does in `lib/api.ts`.
+
+### Hydration error about `localStorage`
+
+Do not read `localStorage` while rendering. Read it inside `useEffect`, as the quiz page does, so the server and browser render the same HTML first.
+
+### Tailwind classes have no effect
+
+Tailwind does not detect dynamic class names such as `` `bg-${color}-500` ``. Write the full class name, or map values to complete strings.
+
+### `Cannot find module '@/lib/...'`
+
+The import alias is missing. Check that `tsconfig.json` has `"paths": { "@/*": ["./*"] }`, then restart the TypeScript server in your editor.
+
+### Port 3000 is already in use
+
+Another process is running. Stop it, or start on another port:
+
+```bash
+npm run dev -- -p 3001
+```
+
+## Still stuck?
+
+Open the browser DevTools (**F12**), go to the **Network** tab, and click the failing request. The status code and the response body usually tell you exactly what went wrong.

@@ -1,0 +1,92 @@
+import { Callout } from 'nextra/components'
+
+# Code Reference
+
+A quick lookup for every type, function and component used in the Quiz App. For explanations, see the [Implementation guide](/guides/implementation).
+
+## Types
+
+Defined in `lib/types.ts`.
+
+| Type | Shape | Used for |
+| --- | --- | --- |
+| `Question` | `category`, `type`, `difficulty`, `question`, `correct_answer`, `incorrect_answers` | One quiz question from the API |
+| `ApiResponse` | `response_code: number`, `results: Question[]` | The full API response |
+| `QuizStatus` | `'idle' \| 'loading' \| 'error' \| 'playing' \| 'finished'` | Which screen the app shows |
+| `ScoreEntry` | `categoryName`, `score`, `total`, `date` | One saved result |
+
+```ts filename="lib/types.ts"
+export interface Question {
+  category: string
+  type: 'multiple' | 'boolean'
+  difficulty: 'easy' | 'medium' | 'hard'
+  question: string
+  correct_answer: string
+  incorrect_answers: string[]
+}
+
+export interface ApiResponse {
+  response_code: number
+  results: Question[]
+}
+
+export type QuizStatus = 'idle' | 'loading' | 'error' | 'playing' | 'finished'
+
+export interface ScoreEntry {
+  categoryName: string
+  score: number
+  total: number
+  date: string
+}
+```
+
+## API functions
+
+Defined in `lib/api.ts`.
+
+| Function | Parameters | Returns |
+| --- | --- | --- |
+| `fetchQuestions` | `categoryId: number`, `amount = 10` | `Promise<Question[]>` |
+| `QuizApiError` | `message: string`, `status?: number` | An `Error` subclass with an optional HTTP `status` |
+
+`fetchQuestions` throws a `QuizApiError` when the network fails, when the HTTP status is not OK, or when `response_code` is not `0`.
+
+## History functions
+
+Defined in `lib/history.ts`.
+
+| Function | Parameters | Returns |
+| --- | --- | --- |
+| `loadHistory` | none | `ScoreEntry[]` (empty on the server or on error) |
+| `saveScore` | `entry: ScoreEntry` | The updated list, newest first, limited to 5 entries |
+
+## Components
+
+| Component | File | Props |
+| --- | --- | --- |
+| `CategorySelect` | `components/CategorySelect.tsx` | `selectedId: number \| null`, `onSelect: (id: number) => void` |
+| `QuestionCard` | `components/QuestionCard.tsx` | `question`, `options`, `selected`, `correctAnswer`, `onAnswer` |
+| `ScoreHistory` | `components/ScoreHistory.tsx` | `entries: ScoreEntry[]` |
+
+## Environment variables
+
+| Variable | Required | Description |
+| --- | --- | --- |
+| `NEXT_PUBLIC_TRIVIA_API_URL` | Yes | Base URL of the Open Trivia DB API |
+
+## API request format
+
+```text
+GET https://opentdb.com/api.php?amount=10&category=9&type=multiple&encode=url3986
+```
+
+| Query parameter | Example | Meaning |
+| --- | --- | --- |
+| `amount` | `10` | Number of questions (1 to 50) |
+| `category` | `9` | Category id, see `lib/categories.ts` |
+| `type` | `multiple` | `multiple` or `boolean` |
+| `encode` | `url3986` | Encodes text so it has no HTML entities |
+
+<Callout type="info">
+  Something not working? Check the [Troubleshooting](/troubleshooting) page.
+</Callout>
