@@ -1,3 +1,41 @@
-# Build a Quiz App with Next.js
+import { Callout, Cards } from 'nextra/components'
+import LiveDemo from '../components/LiveDemo'
 
-Is guide mein hum step by step ek Quiz App banayenge using Next.js, TypeScript aur Tailwind CSS.
+# Build a <span style={{ color: 'var(--devora-accent)' }}>Quiz App</span> with Next.js
+
+This documentation teaches you, step by step, how to build a Quiz App with **Next.js (App Router)**, **TypeScript** and **Tailwind CSS**. The app loads questions from a public API, lets the user pick a category, shows loading and error states, and saves recent scores.
+
+## Try the finished app
+
+Play with a finished Quiz App before you build your own:
+
+<LiveDemo url="https://anamfalak61.github.io/Quiz-App/" title="Quiz App demo" />
+
+<Callout type="info">
+  The demo shows what a finished quiz feels like. The guides below build a version of it with Next.js and TypeScript, using the free Open Trivia DB API.
+</Callout>
+
+## What you will learn
+
+- Setting up a strict TypeScript Next.js project
+- Keeping settings safe with `.env.local`
+- Styling responsive cards and layouts with Tailwind CSS
+- Fetching data with `fetch` or `axios`, with typed API responses
+- Handling loading, error and rate limit states
+- Saving recent scores in the browser
+
+## Start here
+
+<Cards>
+  <Cards.Card title="1. Setup" href="/setup/folder-structure" />
+  <Cards.Card title="2. UI & Styling" href="/guides/ui-styling" />
+  <Cards.Card title="3. Implementation" href="/guides/implementation" />
+  <Cards.Card title="Code Reference" href="/code-reference" />
+  <Cards.Card title="Troubleshooting" href="/troubleshooting" />
+</Cards>
+
+## Requirements
+
+- Node.js 18 or newer
+- Basic knowledge of React and JavaScript
+- A code editor such as VS Code
