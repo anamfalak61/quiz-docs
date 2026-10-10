@@ -1,6 +1,6 @@
-# Quiz App Documentation
+# Weather Dashboard Documentation
 
-A step-by-step documentation site that teaches how to build a Quiz App with Next.js (App Router), TypeScript and Tailwind CSS. Built with [Nextra](https://nextra.site).
+A step-by-step documentation site that teaches how to build a Weather Dashboard with Next.js (App Router), TypeScript and Tailwind CSS. Built with [Nextra](https://nextra.site).
 
 **Live site:** ADD_YOUR_VERCEL_LINK_HERE
 
@@ -10,8 +10,7 @@ A step-by-step documentation site that teaches how to build a Quiz App with Next
 - Setup, UI & Styling and Implementation guides
 - Syntax-highlighted code blocks with copy buttons
 - Tip and warning callouts
-- Embedded live demo
-- Code Reference and Troubleshooting pages
+- Code Reference and Troubleshooting pages (401 and 404 handling)
 - Responsive on mobile, tablet and desktop
 
 ## Tech stack
@@ -47,7 +46,7 @@ Open [http://localhost:3000](http://localhost:3000).
 ```text
 app/            Layout and the Nextra catch-all page
 content/        Documentation pages (.mdx) and _meta.js navigation files
-components/     React components used inside the docs (LiveDemo)
+components/     React components used by the docs layout
 mdx-components.tsx
 next.config.mjs
 ```
@@ -60,7 +59,3 @@ next.config.mjs
 ## Note on dependencies
 
 `package.json` pins `zod` to `4.3.6` with `overrides`. Nextra 4.6.1 breaks with Zod 4.4.x ("expected nonoptional, received undefined at children"). Remove the override once Nextra ships the fix.
-
-## Deployment
-
-Deploy on Vercel: import the repository and keep the default Next.js settings.

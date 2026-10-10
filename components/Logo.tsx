@@ -15,10 +15,10 @@ export default function Logo() {
           fontSize: 18,
         }}
       >
-        Q
+        W
       </span>
       <span style={{ fontWeight: 800, fontSize: '1.25rem', letterSpacing: '-0.02em' }}>
-        Quiz<span style={{ color: '#6d3fd9' }}>App</span>{' '}
+        Weather<span style={{ color: '#6d3fd9' }}>Dash</span>{' '}
         <span style={{ fontWeight: 500, fontSize: '0.95rem', opacity: 0.7 }}>Docs</span>
       </span>
     </span>
