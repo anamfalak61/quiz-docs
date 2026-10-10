@@ -13,20 +13,23 @@ This project needs very few packages.
 | `tailwindcss` | Styling |
 | `eslint` | Code quality checks |
 
-## Extra packages (optional)
+## Optional: axios
 
 ```bash
-npm install axios lucide-react
+npm install axios
 ```
 
 | Package | Purpose |
 | --- | --- |
-| `axios` | An alternative to `fetch` with simpler error handling |
-| `lucide-react` | Category icons |
+| `axios` | An alternative to `fetch` that throws on 4xx and 5xx responses |
 
 <Callout type="info">
-  `axios` is not required. This guide uses the built-in `fetch` first and also shows the `axios` version.
+  `axios` is not required. The [Implementation guide](/guides/implementation) uses the built-in `fetch` first and shows the `axios` version as well.
 </Callout>
+
+## Weather icons
+
+You do not need an icon package. The weather API returns an icon code such as `10d`, and the image is loaded from the API provider's own icon URL. You will use it in the [UI & Styling guide](/guides/ui-styling).
 
 ## Run the project
 
@@ -38,4 +41,4 @@ Open `http://localhost:3000`. If you see the default Next.js page, your setup is
 
 ## What's next
 
-Setup is done. Continue with [UI & Styling](/guides/ui-styling), where we build the cards and layout with Tailwind CSS.
+Continue with [UI & Styling](/guides/ui-styling), where we build the layout, search bar and weather card with Tailwind CSS.

@@ -2,23 +2,28 @@ import { Callout, FileTree } from 'nextra/components'
 
 # Folder Structure
 
-The Quiz App is organized so that every folder has one clear job. This makes the code easier to read and easier to change.
+The Weather Dashboard is organized so that every folder has one clear job. This makes the code easier to read and easier to change.
 
 <FileTree>
-  <FileTree.Folder name="quiz-app" defaultOpen>
+  <FileTree.Folder name="weather-dashboard" defaultOpen>
     <FileTree.Folder name="app" defaultOpen>
       <FileTree.File name="layout.tsx" />
       <FileTree.File name="page.tsx" />
+      <FileTree.Folder name="api" defaultOpen>
+        <FileTree.Folder name="weather" defaultOpen>
+          <FileTree.File name="route.ts" />
+        </FileTree.Folder>
+      </FileTree.Folder>
     </FileTree.Folder>
     <FileTree.Folder name="components" defaultOpen>
-      <FileTree.File name="CategorySelect.tsx" />
-      <FileTree.File name="QuestionCard.tsx" />
-      <FileTree.File name="ScoreHistory.tsx" />
+      <FileTree.File name="SearchBar.tsx" />
+      <FileTree.File name="WeatherCard.tsx" />
+      <FileTree.File name="RecentSearches.tsx" />
     </FileTree.Folder>
     <FileTree.Folder name="lib" defaultOpen>
-      <FileTree.File name="api.ts" />
-      <FileTree.File name="categories.ts" />
       <FileTree.File name="types.ts" />
+      <FileTree.File name="weather.ts" />
+      <FileTree.File name="history.ts" />
     </FileTree.Folder>
     <FileTree.File name=".env.local" />
     <FileTree.File name="tsconfig.json" />
@@ -29,12 +34,14 @@ The Quiz App is organized so that every folder has one clear job. This makes the
 
 | Folder / File | Purpose |
 | --- | --- |
-| `app/` | Pages and layout (Next.js App Router) |
-| `components/` | Reusable UI pieces such as cards and buttons |
-| `lib/api.ts` | Code that fetches data from the API |
-| `lib/types.ts` | TypeScript types (`Question`, `ApiResponse`) |
-| `.env.local` | Settings and secrets, never committed to Git |
+| `app/page.tsx` | The dashboard page the user sees |
+| `app/api/weather/route.ts` | A server route that calls the weather API with your secret key |
+| `components/` | Reusable UI pieces: search box, weather card, history list |
+| `lib/types.ts` | TypeScript types for the API response |
+| `lib/weather.ts` | The function the browser uses to request weather from your route |
+| `lib/history.ts` | Saves and loads recent searches |
+| `.env.local` | Your secret API key, never committed to Git |
 
 <Callout type="info">
-  Keeping API code separate from UI code is a good habit. If the API changes, you only update `lib/api.ts`.
+  The browser never talks to the weather API directly. It calls `app/api/weather/route.ts`, and only that file knows the API key. You will build it in the [Implementation guide](/guides/implementation).
 </Callout>

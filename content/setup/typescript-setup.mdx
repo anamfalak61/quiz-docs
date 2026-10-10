@@ -7,11 +7,11 @@ We use **strict mode** so that mistakes are caught before the app runs.
 ## Create the project
 
 ```bash
-npx create-next-app@latest quiz-app --typescript --tailwind --app --eslint
-cd quiz-app
+npx create-next-app@latest weather-dashboard --typescript --tailwind --app --eslint
+cd weather-dashboard
 ```
 
-This command sets up TypeScript, Tailwind CSS and the App Router for you.
+This sets up TypeScript, Tailwind CSS and the App Router for you.
 
 ## Check strict mode
 
@@ -31,28 +31,48 @@ Open `tsconfig.json` and make sure `strict` is `true`:
 ```
 
 - `strict: true` turns on all important type checks.
-- `noUncheckedIndexedAccess` forces you to handle `undefined` when reading from arrays, such as `questions[0]`.
-- `@/*` is an import alias, so you can write `import { Question } from '@/lib/types'`.
+- `noUncheckedIndexedAccess` forces you to handle `undefined` when reading from arrays, such as `weather[0]`.
+- `@/*` is an import alias, so you can write `import type { WeatherData } from '@/lib/types'`.
 
 ## Write the types first
 
-Describe the shape of the API response before writing any other code:
+Describe the shape of the API response before writing any other code. Create `lib/types.ts`:
 
 ```ts filename="lib/types.ts"
-export interface Question {
-  category: string
-  type: 'multiple' | 'boolean'
-  difficulty: 'easy' | 'medium' | 'hard'
-  question: string
-  correct_answer: string
-  incorrect_answers: string[]
+export interface WeatherCondition {
+  id: number
+  main: string
+  description: string
+  icon: string
 }
 
-export interface ApiResponse {
-  response_code: number
-  results: Question[]
+export interface WeatherData {
+  name: string
+  sys: {
+    country: string
+  }
+  main: {
+    temp: number
+    feels_like: number
+    humidity: number
+  }
+  weather: WeatherCondition[]
+  wind: {
+    speed: number
+  }
+}
+
+export interface ApiErrorBody {
+  cod: number | string
+  message: string
 }
 ```
+
+Only the fields the dashboard uses are listed. The API returns more, and TypeScript simply ignores the rest.
+
+<Callout type="info">
+  `ApiErrorBody.cod` is typed as `number | string` because the API is not consistent: some error responses send the code as a number and others as a string.
+</Callout>
 
 <Callout type="warning">
   Avoid the `any` type. If the API response does not fit a type, fix the type instead of hiding the problem with `any`.
