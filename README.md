@@ -2,7 +2,7 @@
 
 A step-by-step documentation site that teaches how to build a Weather Dashboard with Next.js (App Router), TypeScript and Tailwind CSS. Built with [Nextra](https://nextra.site).
 
-**Live site:** ADD_YOUR_VERCEL_LINK_HERE
+**Live site:** https://quiz-docs.vercel.app/
 
 ## Features
 
