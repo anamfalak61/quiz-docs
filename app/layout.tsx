@@ -27,7 +27,7 @@ export default async function RootLayout({ children }: { children: ReactNode }) 
           navbar={<Navbar logo={<Logo />} />}
           pageMap={await getPageMap()}
           docsRepositoryBase="https://github.com/anamfalak61/quiz-docs/tree/main"
-          footer={<Footer>Quiz App Docs {new Date().getFullYear()}</Footer>}
+        footer={<Footer>© 2026 Anam Falak. Weather Dashboard Docs.</Footer>}
           nextThemes={{ defaultTheme: 'light' }}
         >
           {children}
