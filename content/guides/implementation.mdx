@@ -2,359 +2,287 @@ import { Callout, Steps } from 'nextra/components'
 
 # Implementation
 
-In this guide we connect the Quiz App to the **Open Trivia DB API**. You will build typed API calls, loading and error states, category selection, a quiz flow, and a recent scores history.
+In this guide we connect the Weather Dashboard to the weather API. You will build a **server route** that keeps your API key secret, a typed fetch function, loading and error states, city search, and a recent searches history.
 
 <Callout type="info">
-  Complete [Setup](/setup/folder-structure) and [UI & Styling](/guides/ui-styling) first. This guide uses the `CategorySelect` and `QuestionCard` components from there.
+  Complete [Setup](/setup/folder-structure) and [UI & Styling](/guides/ui-styling) first. This guide uses the `SearchBar`, `WeatherCard` and `RecentSearches` components from there, and the key from your `.env.local`.
 </Callout>
 
-## 1. Extend the types
+## How the data flows
 
-Add the new types to `lib/types.ts`, below the `Question` and `ApiResponse` types from the setup guide:
+```text
+Browser  →  /api/weather?city=Lahore  →  Weather API
+            (your server route)           (key added here)
+```
+
+The browser never sees the API key. It only talks to your own route, and the route adds the key on the server.
+
+## 1. Add one more type
+
+Add this to the end of `lib/types.ts`:
 
 ```ts filename="lib/types.ts"
-export type QuizStatus = 'idle' | 'loading' | 'error' | 'playing' | 'finished'
+export type SearchStatus = 'idle' | 'loading' | 'error' | 'success'
+```
 
-export interface ScoreEntry {
-  categoryName: string
-  score: number
-  total: number
-  date: string // ISO string
+`SearchStatus` lists every screen the dashboard can be in. Because it is a union type, TypeScript warns you if you forget to handle one of them.
+
+## 2. Build the server route
+
+Create `app/api/weather/route.ts`:
+
+```ts filename="app/api/weather/route.ts"
+import { NextResponse } from 'next/server'
+import type { ApiErrorBody, WeatherData } from '@/lib/types'
+
+const BASE_URL = 'https://api.openweathermap.org/data/2.5/weather'
+
+export async function GET(request: Request) {
+  const apiKey = process.env.OPENWEATHER_API_KEY
+
+  if (!apiKey) {
+    return NextResponse.json(
+      { cod: 500, message: 'The server is missing OPENWEATHER_API_KEY.' },
+      { status: 500 },
+    )
+  }
+
+  const city = new URL(request.url).searchParams.get('city')?.trim()
+
+  if (!city) {
+    return NextResponse.json({ cod: 400, message: 'City is required.' }, { status: 400 })
+  }
+
+  const url = `${BASE_URL}?q=${encodeURIComponent(city)}&appid=${apiKey}&units=metric`
+
+  let response: Response
+  try {
+    response = await fetch(url, { cache: 'no-store' })
+  } catch {
+    return NextResponse.json(
+      { cod: 502, message: 'Could not reach the weather service.' },
+      { status: 502 },
+    )
+  }
+
+  const body: WeatherData | ApiErrorBody = await response.json()
+  return NextResponse.json(body, { status: response.status })
 }
 ```
 
-`QuizStatus` lists every screen the app can be on. Because it is a union type, TypeScript will warn you if you forget to handle one of them.
+What this route does:
 
-## 2. Fetch questions
+- Reads the key from `process.env`. This only works on the server.
+- Rejects an empty city with `400` before calling the API.
+- `encodeURIComponent` makes names like `New York` safe to put in a URL.
+- It passes the API's status code through, so a `401` or `404` from the weather API reaches your UI unchanged.
 
-Create `lib/api.ts`. It builds the URL, checks the response, and converts every failure into a readable `QuizApiError`.
+### Test the route
 
-```ts filename="lib/api.ts"
-import type { ApiResponse, Question } from '@/lib/types'
+Start the app and open this address in the browser:
 
-const BASE_URL = process.env.NEXT_PUBLIC_TRIVIA_API_URL
+```text
+http://localhost:3000/api/weather?city=Lahore
+```
 
-export class QuizApiError extends Error {
-  status?: number
+You should see the weather JSON. Now open DevTools (**F12**), go to the **Network** tab and click the request. The request URL contains your own address only, with **no `appid`**. That is the proof that the key stays on the server.
 
-  constructor(message: string, status?: number) {
+<Callout type="warning">
+  Never put the API key in a file inside `components/` or in a page marked `'use client'`. Anything there is sent to the browser.
+</Callout>
+
+## 3. Fetch from the browser
+
+Create `lib/weather.ts`. It calls your route and turns every failure into a readable message.
+
+```ts filename="lib/weather.ts"
+import type { WeatherData } from '@/lib/types'
+
+export class WeatherApiError extends Error {
+  status: number
+
+  constructor(message: string, status: number) {
     super(message)
-    this.name = 'QuizApiError'
+    this.name = 'WeatherApiError'
     this.status = status
   }
 }
 
-function messageForStatus(status: number): string {
-  if (status === 429) return 'Too many requests. Please wait a few seconds and try again.'
-  if (status === 404) return 'The quiz service could not be found.'
-  return `Request failed with status ${status}.`
-}
-
-function messageForCode(code: number): string {
-  switch (code) {
-    case 1:
-      return 'Not enough questions in this category. Please choose another one.'
-    case 2:
-      return 'The request had an invalid parameter.'
-    case 5:
-      return 'Too many requests. Please wait a few seconds and try again.'
+export function messageForStatus(status: number): string {
+  switch (status) {
+    case 400:
+      return 'Please enter a city name.'
+    case 401:
+      return 'The weather service rejected the API key. Check OPENWEATHER_API_KEY and restart the server.'
+    case 404:
+      return 'City not found. Check the spelling and try again.'
+    case 429:
+      return 'Too many requests. Please wait a moment and try again.'
     default:
-      return 'The quiz service returned an unexpected response.'
+      return status >= 500
+        ? 'The weather service is having problems. Please try again later.'
+        : `Request failed with status ${status}.`
   }
 }
 
-function decodeQuestion(q: Question): Question {
-  return {
-    ...q,
-    category: decodeURIComponent(q.category),
-    question: decodeURIComponent(q.question),
-    correct_answer: decodeURIComponent(q.correct_answer),
-    incorrect_answers: q.incorrect_answers.map(decodeURIComponent),
-  }
-}
-
-export async function fetchQuestions(categoryId: number, amount = 10): Promise<Question[]> {
-  if (!BASE_URL) {
-    throw new QuizApiError('API URL is missing. Check your .env.local file.')
-  }
-
-  const url = `${BASE_URL}?amount=${amount}&category=${categoryId}&type=multiple&encode=url3986`
-
+export async function fetchWeather(city: string): Promise<WeatherData> {
   let response: Response
+
   try {
-    response = await fetch(url)
+    response = await fetch(`/api/weather?city=${encodeURIComponent(city)}`)
   } catch {
-    throw new QuizApiError('Network error. Please check your internet connection.')
+    throw new WeatherApiError('Network error. Please check your internet connection.', 0)
   }
 
   if (!response.ok) {
-    throw new QuizApiError(messageForStatus(response.status), response.status)
+    throw new WeatherApiError(messageForStatus(response.status), response.status)
   }
 
-  const data: ApiResponse = await response.json()
-
-  if (data.response_code !== 0) {
-    throw new QuizApiError(messageForCode(data.response_code))
-  }
-
-  return data.results.map(decodeQuestion)
+  return (await response.json()) as WeatherData
 }
 ```
 
-A few things worth noticing:
-
-- `encode=url3986` asks the API to URL-encode text. Without it, questions contain HTML entities such as `&quot;` and `&#039;`.
-- The API can return **HTTP 200** and still fail. The real result is in `response_code`, where `0` means success.
-- `response.ok` is `false` for 4xx and 5xx statuses, but `fetch` does **not** throw for them. You must check it yourself.
-
 <Callout type="warning">
-  The Open Trivia DB allows about **one request every 5 seconds per IP address**. If you click too fast you will get HTTP 429, which our error handling turns into a friendly message.
+  `fetch` only throws on network failures. It does **not** throw on 401 or 404, so always check `response.ok` before reading the body.
+</Callout>
+
+<Callout type="info">
+  `as WeatherData` tells TypeScript to trust the shape of the response. It is not a runtime check. That is acceptable here because the data comes from your own route.
 </Callout>
 
 ### The same call with axios
 
-If you prefer `axios`, the request looks like this. It throws automatically for 4xx and 5xx statuses.
+If you prefer `axios` (`npm install axios`), `axios` throws automatically for 4xx and 5xx statuses:
 
-```ts filename="lib/api.axios.ts"
+```ts filename="lib/weather.axios.ts"
 import axios, { AxiosError } from 'axios'
-import type { ApiResponse } from '@/lib/types'
+import { WeatherApiError, messageForStatus } from '@/lib/weather'
+import type { WeatherData } from '@/lib/types'
 
-export async function fetchQuestionsWithAxios(categoryId: number) {
+export async function fetchWeatherWithAxios(city: string): Promise<WeatherData> {
   try {
-    const { data } = await axios.get<ApiResponse>(process.env.NEXT_PUBLIC_TRIVIA_API_URL!, {
-      params: { amount: 10, category: categoryId, type: 'multiple', encode: 'url3986' },
-    })
-    return data.results
+    const { data } = await axios.get<WeatherData>('/api/weather', { params: { city } })
+    return data
   } catch (error) {
     if (error instanceof AxiosError && error.response) {
-      console.error('Request failed with status', error.response.status)
+      throw new WeatherApiError(messageForStatus(error.response.status), error.response.status)
     }
-    throw error
+    throw new WeatherApiError('Network error. Please check your internet connection.', 0)
   }
 }
 ```
 
-## 3. Save recent scores
+## 4. Save recent searches
 
-We store the last five results in the browser with `localStorage`.
+We store the last five cities in the browser with `localStorage`.
 
 ```ts filename="lib/history.ts"
-import type { ScoreEntry } from '@/lib/types'
-
-const KEY = 'quiz-history'
+const KEY = 'recent-cities'
 const MAX_ENTRIES = 5
 
-export function loadHistory(): ScoreEntry[] {
+export function loadHistory(): string[] {
   if (typeof window === 'undefined') return []
+
   try {
     const raw = window.localStorage.getItem(KEY)
-    return raw ? (JSON.parse(raw) as ScoreEntry[]) : []
+    return raw ? (JSON.parse(raw) as string[]) : []
   } catch {
     return []
   }
 }
 
-export function saveScore(entry: ScoreEntry): ScoreEntry[] {
-  const updated = [entry, ...loadHistory()].slice(0, MAX_ENTRIES)
+export function addCity(city: string): string[] {
+  const updated = [
+    city,
+    ...loadHistory().filter((item) => item.toLowerCase() !== city.toLowerCase()),
+  ].slice(0, MAX_ENTRIES)
+
   try {
     window.localStorage.setItem(KEY, JSON.stringify(updated))
   } catch {
-    // Storage can be full or blocked. The quiz still works without history.
+    // Storage can be full or blocked. The dashboard still works without history.
   }
+
   return updated
 }
 ```
 
-Show the list with a small component:
-
-```tsx filename="components/ScoreHistory.tsx"
-import type { ScoreEntry } from '@/lib/types'
-
-export default function ScoreHistory({ entries }: { entries: ScoreEntry[] }) {
-  if (entries.length === 0) return null
-
-  return (
-    <section className="mt-10">
-      <h2 className="mb-3 text-lg font-semibold">Recent scores</h2>
-      <ul className="space-y-2">
-        {entries.map((entry) => (
-          <li
-            key={entry.date}
-            className="flex items-center justify-between rounded-lg border border-slate-200 bg-white px-4 py-3 text-sm"
-          >
-            <span>{entry.categoryName}</span>
-            <span className="font-semibold">
-              {entry.score} / {entry.total}
-            </span>
-          </li>
-        ))}
-      </ul>
-    </section>
-  )
-}
-```
+`addCity` removes an older copy of the same city first, so a city never appears twice, and the newest search is always first.
 
 <Callout type="info">
-  `localStorage` does not exist on the server, which is why `loadHistory` checks `typeof window`. We also read it inside `useEffect` in the next step, so the server and browser render the same HTML first.
+  `localStorage` does not exist on the server, which is why `loadHistory` checks `typeof window`. We also read it inside `useEffect` in the next step, so the server and the browser render the same HTML first.
 </Callout>
 
-## 4. Build the quiz page
+## 5. Build the dashboard page
 
-The page is a small state machine driven by `status`: idle, loading, error, playing and finished.
+The page is a small state machine driven by `status`: idle, loading, error and success.
 
 ```tsx filename="app/page.tsx"
 'use client'
 
-import { useEffect, useMemo, useState } from 'react'
-import CategorySelect from '@/components/CategorySelect'
-import QuestionCard from '@/components/QuestionCard'
-import ScoreHistory from '@/components/ScoreHistory'
-import { fetchQuestions, QuizApiError } from '@/lib/api'
-import { CATEGORIES } from '@/lib/categories'
-import { loadHistory, saveScore } from '@/lib/history'
-import type { Question, QuizStatus, ScoreEntry } from '@/lib/types'
-
-function shuffle<T>(items: T[]): T[] {
-  return [...items].sort(() => Math.random() - 0.5)
-}
+import { useEffect, useState } from 'react'
+import RecentSearches from '@/components/RecentSearches'
+import SearchBar from '@/components/SearchBar'
+import WeatherCard from '@/components/WeatherCard'
+import { addCity, loadHistory } from '@/lib/history'
+import type { SearchStatus, WeatherData } from '@/lib/types'
+import { fetchWeather, WeatherApiError } from '@/lib/weather'
 
 export default function Home() {
-  const [status, setStatus] = useState<QuizStatus>('idle')
-  const [categoryId, setCategoryId] = useState<number | null>(null)
-  const [questions, setQuestions] = useState<Question[]>([])
-  const [index, setIndex] = useState(0)
-  const [selected, setSelected] = useState<string | null>(null)
-  const [score, setScore] = useState(0)
+  const [status, setStatus] = useState<SearchStatus>('idle')
+  const [weather, setWeather] = useState<WeatherData | null>(null)
   const [errorMessage, setErrorMessage] = useState('')
-  const [history, setHistory] = useState<ScoreEntry[]>([])
+  const [history, setHistory] = useState<string[]>([])
 
   useEffect(() => {
     setHistory(loadHistory())
   }, [])
 
-  const current = questions[index]
-
-  const options = useMemo(
-    () => (current ? shuffle([...current.incorrect_answers, current.correct_answer]) : []),
-    [current],
-  )
-
-  async function startQuiz(id: number) {
-    setCategoryId(id)
+  async function search(city: string) {
     setStatus('loading')
     setErrorMessage('')
 
     try {
-      const data = await fetchQuestions(id)
-      setQuestions(data)
-      setIndex(0)
-      setScore(0)
-      setSelected(null)
-      setStatus('playing')
+      const data = await fetchWeather(city)
+      setWeather(data)
+      setHistory(addCity(data.name))
+      setStatus('success')
     } catch (error) {
       setErrorMessage(
-        error instanceof QuizApiError ? error.message : 'Something went wrong. Please try again.',
+        error instanceof WeatherApiError
+          ? error.message
+          : 'Something went wrong. Please try again.',
       )
       setStatus('error')
     }
   }
 
-  function handleAnswer(answer: string) {
-    if (!current || selected !== null) return
-    setSelected(answer)
-    if (answer === current.correct_answer) setScore((s) => s + 1)
-  }
-
-  function handleNext() {
-    if (index + 1 < questions.length) {
-      setIndex((i) => i + 1)
-      setSelected(null)
-      return
-    }
-
-    const categoryName = CATEGORIES.find((c) => c.id === categoryId)?.name ?? 'Quiz'
-    setHistory(
-      saveScore({
-        categoryName,
-        score,
-        total: questions.length,
-        date: new Date().toISOString(),
-      }),
-    )
-    setStatus('finished')
-  }
-
   return (
     <div>
-      <h1 className="mb-6 text-2xl font-bold sm:text-3xl">Quiz App</h1>
+      <h1 className="mb-6 text-2xl font-bold">Weather Dashboard</h1>
 
-      {status === 'idle' && (
-        <>
-          <p className="mb-4 text-slate-600">Choose a category to start.</p>
-          <CategorySelect selectedId={categoryId} onSelect={startQuiz} />
-        </>
-      )}
+      <SearchBar onSearch={search} disabled={status === 'loading'} />
+      <RecentSearches cities={history} onSelect={search} />
 
-      {status === 'loading' && (
-        <p role="status" className="py-12 text-center text-slate-600">
-          Loading questions...
-        </p>
-      )}
+      <div className="mt-6">
+        {status === 'idle' && (
+          <p className="text-slate-600">Search for a city to see its weather.</p>
+        )}
 
-      {status === 'error' && (
-        <div role="alert" className="rounded-xl border border-red-200 bg-red-50 p-5">
-          <p className="mb-4 text-red-800">{errorMessage}</p>
-          <button
-            type="button"
-            onClick={() => (categoryId !== null ? startQuiz(categoryId) : setStatus('idle'))}
-            className="rounded-lg bg-red-600 px-4 py-2 text-sm font-medium text-white hover:bg-red-700"
-          >
-            Try again
-          </button>
-        </div>
-      )}
-
-      {status === 'playing' && current && (
-        <>
-          <p className="mb-3 text-sm text-slate-600">
-            Question {index + 1} of {questions.length} · Score {score}
+        {status === 'loading' && (
+          <p role="status" className="text-slate-600">
+            Loading weather...
           </p>
-          <QuestionCard
-            question={current.question}
-            options={options}
-            selected={selected}
-            correctAnswer={current.correct_answer}
-            onAnswer={handleAnswer}
-          />
-          {selected !== null && (
-            <button
-              type="button"
-              onClick={handleNext}
-              className="mt-5 rounded-lg bg-violet-600 px-5 py-2.5 font-medium text-white hover:bg-violet-700"
-            >
-              {index + 1 < questions.length ? 'Next question' : 'See result'}
-            </button>
-          )}
-        </>
-      )}
+        )}
 
-      {status === 'finished' && (
-        <div className="rounded-2xl border border-slate-200 bg-white p-8 text-center shadow-sm">
-          <p className="text-slate-600">Your score</p>
-          <p className="my-2 text-4xl font-bold">
-            {score} / {questions.length}
-          </p>
-          <button
-            type="button"
-            onClick={() => setStatus('idle')}
-            className="mt-4 rounded-lg bg-violet-600 px-5 py-2.5 font-medium text-white hover:bg-violet-700"
-          >
-            Play again
-          </button>
-        </div>
-      )}
+        {status === 'error' && (
+          <div role="alert" className="rounded-xl border border-red-200 bg-red-50 p-4 text-red-800">
+            {errorMessage}
+          </div>
+        )}
 
-      <ScoreHistory entries={history} />
+        {status === 'success' && weather && <WeatherCard data={weather} />}
+      </div>
     </div>
   )
 }
@@ -364,33 +292,35 @@ export default function Home() {
 
 <Steps>
 
-### Pick a category
+### The user searches
 
-Clicking a card calls `startQuiz(id)`, which sets `status` to `loading` and awaits `fetchQuestions`.
+`SearchBar` calls `search(city)`. The page sets `status` to `loading`, which also disables the button so the user cannot send the request twice.
 
-### Handle the result
+### The request finishes
 
-On success we store the questions and move to `playing`. On failure the `catch` block saves a readable message and moves to `error`.
+On success we store the weather, add the API's own spelling of the city to the history, and move to `success`. On failure the `catch` block saves a readable message and moves to `error`.
 
-### Answer and continue
+### The user picks a recent city
 
-`handleAnswer` locks the card and updates the score. `handleNext` moves on, or saves the score to history after the last question.
+Clicking a recent search calls the same `search` function, so there is only one code path to maintain.
 
 </Steps>
 
 <Callout type="warning">
-  Always keep the **loading** and **error** states. Without them, a slow network shows a blank page, and a failed request leaves the user stuck with no way to retry.
+  Always keep the **loading** and **error** states. Without them, a slow network shows nothing, and a failed request leaves the user with no explanation.
 </Callout>
 
-## 5. Test the error states
+## 6. Test every state
 
-Try to break the app on purpose to see each state:
+Break the app on purpose to see each state:
 
 | Test | How | What you should see |
 | --- | --- | --- |
-| Loading | Throttle the network to **Slow 4G** in DevTools | "Loading questions..." |
-| Network error | Switch the network to **Offline** | "Network error..." with a retry button |
-| Rate limit | Click two categories quickly | "Too many requests..." message |
-| Missing env | Remove the URL from `.env.local` and restart | "API URL is missing..." |
+| Success | Search `Lahore` | Weather card with an icon |
+| 404 | Search `Xyzabc` | "City not found..." |
+| 401 | Put a wrong key in `.env.local`, restart the server, search | "The weather service rejected the API key..." |
+| Network error | Set the network to **Offline** in DevTools | "Network error..." |
+| Loading | Set the network to **Slow 4G** in DevTools | "Loading weather..." |
+| History | Search 3 cities, then refresh the page | The 3 cities remain as buttons |
 
 For a full list of errors and fixes, see the [Troubleshooting](/troubleshooting) page.
