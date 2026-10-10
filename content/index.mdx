@@ -1,28 +1,31 @@
 import { Callout, Cards } from 'nextra/components'
-import LiveDemo from '../components/LiveDemo'
 
-# Build a <span style={{ color: 'var(--devora-accent)' }}>Quiz App</span> with Next.js
+# Build a Weather Dashboard with Next.js
 
-This documentation teaches you, step by step, how to build a Quiz App with **Next.js (App Router)**, **TypeScript** and **Tailwind CSS**. The app loads questions from a public API, lets the user pick a category, shows loading and error states, and saves recent scores.
+This documentation teaches you, step by step, how to build a Weather Dashboard with **Next.js (App Router)**, **TypeScript** and **Tailwind CSS**. The app searches the weather of any city, shows it on a card with a dynamic weather icon, handles loading and errors, and remembers your recent searches.
 
-## Try the finished app
+{/*
+  After you deploy the weather-dashboard app, uncomment this section,
+  import LiveDemo at the top of the file, and paste your Vercel link.
 
-Play with a finished Quiz App before you build your own:
+  ## Try the finished app
 
-<LiveDemo url="https://anamfalak61.github.io/Quiz-App/" title="Quiz App demo" />
+  <LiveDemo url="https://YOUR-VERCEL-LINK" title="Weather Dashboard demo" />
+*/}
 
 <Callout type="info">
-  The demo shows what a finished quiz feels like. The guides below build a version of it with Next.js and TypeScript, using the free Open Trivia DB API.
+  The most important idea in this guide: your API key stays on the server. The browser talks to your own route, and only that route knows the key.
 </Callout>
 
 ## What you will learn
 
 - Setting up a strict TypeScript Next.js project
-- Keeping settings safe with `.env.local`
-- Styling responsive cards and layouts with Tailwind CSS
+- Keeping an API key safe with `.env.local` and a server route
+- Styling a responsive weather card with Tailwind CSS
+- Showing dynamic weather icons that match the current conditions
 - Fetching data with `fetch` or `axios`, with typed API responses
-- Handling loading, error and rate limit states
-- Saving recent scores in the browser
+- Handling loading, error, 401 and 404 states
+- Searching by city and saving recent searches
 
 ## Start here
 
@@ -38,4 +41,5 @@ Play with a finished Quiz App before you build your own:
 
 - Node.js 18 or newer
 - Basic knowledge of React and JavaScript
+- A free OpenWeather account and API key (see [Environment Variables](/setup/env-variables))
 - A code editor such as VS Code

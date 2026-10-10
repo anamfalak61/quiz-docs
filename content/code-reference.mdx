@@ -2,90 +2,104 @@ import { Callout } from 'nextra/components'
 
 # Code Reference
 
-A quick lookup for every type, function and component used in the Quiz App. For explanations, see the [Implementation guide](/guides/implementation).
+A quick lookup for every type, function and component in the Weather Dashboard. For explanations, see the [Implementation guide](/guides/implementation).
 
 ## Types
 
 Defined in `lib/types.ts`.
 
-| Type | Shape | Used for |
+| Type | Fields | Used for |
 | --- | --- | --- |
-| `Question` | `category`, `type`, `difficulty`, `question`, `correct_answer`, `incorrect_answers` | One quiz question from the API |
-| `ApiResponse` | `response_code: number`, `results: Question[]` | The full API response |
-| `QuizStatus` | `'idle' \| 'loading' \| 'error' \| 'playing' \| 'finished'` | Which screen the app shows |
-| `ScoreEntry` | `categoryName`, `score`, `total`, `date` | One saved result |
+| `WeatherCondition` | `id`, `main`, `description`, `icon` | One weather condition, such as light rain |
+| `WeatherData` | `name`, `sys.country`, `main.temp`, `main.feels_like`, `main.humidity`, `weather`, `wind.speed` | The weather of one city |
+| `ApiErrorBody` | `cod`, `message` | The body of an error response |
+| `SearchStatus` | `idle`, `loading`, `error`, `success` | Which screen the dashboard shows |
 
 ```ts filename="lib/types.ts"
-export interface Question {
-  category: string
-  type: 'multiple' | 'boolean'
-  difficulty: 'easy' | 'medium' | 'hard'
-  question: string
-  correct_answer: string
-  incorrect_answers: string[]
+export interface WeatherCondition {
+  id: number
+  main: string
+  description: string
+  icon: string
 }
 
-export interface ApiResponse {
-  response_code: number
-  results: Question[]
+export interface WeatherData {
+  name: string
+  sys: {
+    country: string
+  }
+  main: {
+    temp: number
+    feels_like: number
+    humidity: number
+  }
+  weather: WeatherCondition[]
+  wind: {
+    speed: number
+  }
 }
 
-export type QuizStatus = 'idle' | 'loading' | 'error' | 'playing' | 'finished'
-
-export interface ScoreEntry {
-  categoryName: string
-  score: number
-  total: number
-  date: string
+export interface ApiErrorBody {
+  cod: number | string
+  message: string
 }
+
+export type SearchStatus = 'idle' | 'loading' | 'error' | 'success'
 ```
 
-## API functions
+## Server route
 
-Defined in `lib/api.ts`.
+Defined in `app/api/weather/route.ts`.
 
-| Function | Parameters | Returns |
-| --- | --- | --- |
-| `fetchQuestions` | `categoryId: number`, `amount = 10` | `Promise<Question[]>` |
-| `QuizApiError` | `message: string`, `status?: number` | An `Error` subclass with an optional HTTP `status` |
+| Route | Method | Query parameter | Description |
+| --- | --- | --- | --- |
+| `/api/weather` | `GET` | `city` (required) | Calls the weather API with your secret key and returns its JSON |
 
-`fetchQuestions` throws a `QuizApiError` when the network fails, when the HTTP status is not OK, or when `response_code` is not `0`.
+## Client functions
 
-## History functions
+| Function | File | Parameters | Returns |
+| --- | --- | --- | --- |
+| `fetchWeather` | `lib/weather.ts` | `city: string` | `Promise<WeatherData>` |
+| `messageForStatus` | `lib/weather.ts` | `status: number` | A readable error message |
+| `WeatherApiError` | `lib/weather.ts` | `message: string`, `status: number` | An `Error` subclass with the HTTP `status` |
+| `loadHistory` | `lib/history.ts` | none | `string[]` of recent cities |
+| `addCity` | `lib/history.ts` | `city: string` | The updated list, newest first, at most 5 |
 
-Defined in `lib/history.ts`.
-
-| Function | Parameters | Returns |
-| --- | --- | --- |
-| `loadHistory` | none | `ScoreEntry[]` (empty on the server or on error) |
-| `saveScore` | `entry: ScoreEntry` | The updated list, newest first, limited to 5 entries |
+`fetchWeather` throws a `WeatherApiError` when the network fails or the response status is not OK.
 
 ## Components
 
 | Component | File | Props |
 | --- | --- | --- |
-| `CategorySelect` | `components/CategorySelect.tsx` | `selectedId: number \| null`, `onSelect: (id: number) => void` |
-| `QuestionCard` | `components/QuestionCard.tsx` | `question`, `options`, `selected`, `correctAnswer`, `onAnswer` |
-| `ScoreHistory` | `components/ScoreHistory.tsx` | `entries: ScoreEntry[]` |
+| `SearchBar` | `components/SearchBar.tsx` | `onSearch: (city: string) => void`, `disabled?: boolean` |
+| `WeatherCard` | `components/WeatherCard.tsx` | `data: WeatherData` |
+| `RecentSearches` | `components/RecentSearches.tsx` | `cities: string[]`, `onSelect: (city: string) => void` |
 
 ## Environment variables
 
-| Variable | Required | Description |
+| Variable | Required | Where it is available |
 | --- | --- | --- |
-| `NEXT_PUBLIC_TRIVIA_API_URL` | Yes | Base URL of the Open Trivia DB API |
+| `OPENWEATHER_API_KEY` | Yes | Server only |
 
-## API request format
+## Weather API request
 
 ```text
-GET https://opentdb.com/api.php?amount=10&category=9&type=multiple&encode=url3986
+GET https://api.openweathermap.org/data/2.5/weather?q=Lahore&appid=YOUR_KEY&units=metric
 ```
 
 | Query parameter | Example | Meaning |
 | --- | --- | --- |
-| `amount` | `10` | Number of questions (1 to 50) |
-| `category` | `9` | Category id, see `lib/categories.ts` |
-| `type` | `multiple` | `multiple` or `boolean` |
-| `encode` | `url3986` | Encodes text so it has no HTML entities |
+| `q` | `Lahore` | City name |
+| `appid` | `YOUR_KEY` | Your API key |
+| `units` | `metric` | Temperature in Celsius |
+
+## Weather icon URL
+
+```text
+https://openweathermap.org/img/wn/10d@2x.png
+```
+
+Replace `10d` with the `weather[0].icon` value from the response. The last letter is `d` for day or `n` for night.
 
 <Callout type="info">
   Something not working? Check the [Troubleshooting](/troubleshooting) page.

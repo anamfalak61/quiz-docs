@@ -4,52 +4,52 @@ import { Callout } from 'nextra/components'
 
 Common errors and how to fix them.
 
-## API response codes
+## Status codes
 
-The Open Trivia DB can answer with **HTTP 200** and still report a problem in `response_code`.
+| Status | Comes from | Meaning | Fix |
+| --- | --- | --- | --- |
+| `400` | Your route | No city was sent | Type a city name before searching |
+| `401` | Weather API | The API key was rejected | See [401 Invalid API key](#401-invalid-api-key) |
+| `404` | Weather API | City not found | See [404 City not found](#404-city-not-found) |
+| `429` | Weather API | Too many requests | Wait a moment and try again. Do not retry in a loop |
+| `500` | Your route | `OPENWEATHER_API_KEY` is missing | Check `.env.local` and restart the server |
+| `502` | Your route | The weather service could not be reached | Check your internet connection and try again |
 
-| Code | Meaning | Fix |
-| --- | --- | --- |
-| `0` | Success | Nothing to fix |
-| `1` | No results | The category has too few questions. Choose another category or lower `amount` |
-| `2` | Invalid parameter | Check `amount`, `category` and `type` in the URL |
-| `3` | Token not found | You used a session token that does not exist. Request a new one |
-| `4` | Token empty | All questions were already used. Reset the token |
-| `5` | Rate limit | Wait 5 seconds and try again |
+## 401 Invalid API key
 
-## HTTP errors
+A rejected key returns a response like this:
 
-| Status | Cause | Fix |
-| --- | --- | --- |
-| `401` | Missing or invalid API key | Check the key in `.env.local` and restart the dev server |
-| `404` | Wrong URL | Check `NEXT_PUBLIC_TRIVIA_API_URL` for typos |
-| `429` | Too many requests | Wait a few seconds. Do not retry in a loop |
-| `500` and above | Server problem | Try again later. It is not your code |
-
-<Callout type="info">
-  The Open Trivia DB does not use API keys, so you will not see `401` with it. Handling `401` is still good practice, because you will meet it with most other APIs.
-</Callout>
-
-## Handling 401 and 404 in code
-
-Extend the status handler in `lib/api.ts` so each error gets a clear message:
-
-```ts filename="lib/api.ts"
-function messageForStatus(status: number): string {
-  switch (status) {
-    case 401:
-      return 'Unauthorized. Check that your API key is correct.'
-    case 404:
-      return 'The quiz service could not be found. Check the API URL.'
-    case 429:
-      return 'Too many requests. Please wait a few seconds and try again.'
-    default:
-      return status >= 500
-        ? 'The quiz service is having problems. Please try again later.'
-        : `Request failed with status ${status}.`
-  }
+```json
+{
+  "cod": 401,
+  "message": "Invalid API key. Please see https://openweathermap.org/faq#error401 for more info."
 }
 ```
+
+Check these in order:
+
+1. **The key is brand new.** A new key can need anywhere from a few minutes to a couple of hours before it works. Wait and try again.
+2. **A typo in the key.** Copy it again from your API keys page. Make sure there are no spaces or quotes around it in `.env.local`.
+3. **You did not restart the server.** Changes to `.env.local` are only loaded when `npm run dev` starts.
+
+<Callout type="info">
+  A quick way to test a key outside your app: open `https://api.openweathermap.org/data/2.5/weather?q=Lahore&appid=YOUR_KEY&units=metric` in the browser, with your key in place of `YOUR_KEY`. Never share that address with the key in it.
+</Callout>
+
+## 404 City not found
+
+```json
+{
+  "cod": "404",
+  "message": "city not found"
+}
+```
+
+Notice that `cod` is a string here and a number in the 401 example. That is why `ApiErrorBody.cod` is typed as `number | string`.
+
+- Check the spelling.
+- Use the English name of the city.
+- To avoid mix-ups between cities with the same name, add the country code: `Lahore,PK`.
 
 <Callout type="warning">
   `fetch` only throws on network failures. It does **not** throw on 401 or 404, so always check `response.ok` before reading the body.
@@ -57,17 +57,21 @@ function messageForStatus(status: number): string {
 
 ## Common problems
 
-### "API URL is missing"
+### "The server is missing OPENWEATHER_API_KEY"
 
-`.env.local` is missing, misspelled, or the dev server was not restarted. The variable must be named exactly `NEXT_PUBLIC_TRIVIA_API_URL`. Stop the server and run `npm run dev` again.
+`.env.local` is missing, is in the wrong folder, or the variable name is misspelled. The file must sit next to `package.json` and contain exactly `OPENWEATHER_API_KEY=your_key`. Restart the dev server afterwards.
 
-### Questions show `&quot;` or `&#039;`
+### It works locally but fails after deploying
 
-The request is missing `encode=url3986`, or the text is not decoded. Use `decodeURIComponent` on every text field, as `decodeQuestion` does in `lib/api.ts`.
+`.env.local` is not uploaded to your host, on purpose. Add `OPENWEATHER_API_KEY` in your hosting dashboard under environment variables, then deploy again so the new value is used.
+
+### The weather icon does not appear
+
+If you use `next/image`, the icon host must be allowed in `next.config.ts` under `images.remotePatterns`. See [UI & Styling](/guides/ui-styling). Restart the dev server after editing that file.
 
 ### Hydration error about `localStorage`
 
-Do not read `localStorage` while rendering. Read it inside `useEffect`, as the quiz page does, so the server and browser render the same HTML first.
+Do not read `localStorage` while rendering. Read it inside `useEffect`, as the dashboard page does, so the server and the browser render the same HTML first.
 
 ### Tailwind classes have no effect
 
@@ -87,4 +91,4 @@ npm run dev -- -p 3001
 
 ## Still stuck?
 
-Open the browser DevTools (**F12**), go to the **Network** tab, and click the failing request. The status code and the response body usually tell you exactly what went wrong.
+Open the browser DevTools (**F12**), go to the **Network** tab, and click the failing request. The status code and the response body usually tell you what went wrong. Your API key should never appear in the request address. If it does, the key is exposed and you should generate a new one.
