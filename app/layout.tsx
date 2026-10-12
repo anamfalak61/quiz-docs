@@ -14,8 +14,8 @@ const poppins = Poppins({
 })
 
 export const metadata = {
-  title: 'Quiz App Docs',
-  description: 'Step-by-step guide to build a Weather Dashboard with Next.js and TypeScript',git
+  title: 'Weather Dashboard Docs',
+  description: 'Step-by-step guide to build a Weather Dashboard with Next.js and TypeScript',
 }
 
 export default async function RootLayout({ children }: { children: ReactNode }) {
