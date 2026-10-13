@@ -1,17 +1,15 @@
 import { Callout, Cards } from 'nextra/components'
+import LiveDemo from '../components/LiveDemo'
 
 # Build a Weather Dashboard with Next.js
 
 This documentation teaches you, step by step, how to build a Weather Dashboard with **Next.js (App Router)**, **TypeScript** and **Tailwind CSS**. The app searches the weather of any city, shows it on a card with a dynamic weather icon, handles loading and errors, and remembers your recent searches.
 
-{/*
-  After you deploy the weather-dashboard app, uncomment this section,
-  import LiveDemo at the top of the file, and paste your Vercel link.
+## Try the live demo
 
-  ## Try the finished app
+Search for a city to see the finished dashboard:
 
-  <LiveDemo url="https://YOUR-VERCEL-LINK" title="Weather Dashboard demo" />
-*/}
+<LiveDemo url="https://weather-dashboard-lake-phi.vercel.app" title="Weather Dashboard demo" />
 
 <Callout type="info">
   The most important idea in this guide: your API key stays on the server. The browser talks to your own route, and only that route knows the key.

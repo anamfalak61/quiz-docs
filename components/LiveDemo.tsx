@@ -1,9 +1,10 @@
 interface LiveDemoProps {
   url: string
   title?: string
+  height?: number
 }
 
-export default function LiveDemo({ url, title = 'Live demo' }: LiveDemoProps) {
+export default function LiveDemo({ url, title = 'Live demo', height = 720 }: LiveDemoProps) {
   return (
     <div
       style={{
@@ -17,7 +18,7 @@ export default function LiveDemo({ url, title = 'Live demo' }: LiveDemoProps) {
         src={url}
         title={title}
         loading="lazy"
-        style={{ display: 'block', width: '100%', height: '560px', border: 0, background: '#fff' }}
+        style={{ display: 'block', width: '100%', height: `${height}px`, border: 0, background: '#fff' }}
       />
       <div
         style={{
