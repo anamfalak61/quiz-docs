@@ -1,9 +1,13 @@
-import { Callout, Cards } from 'nextra/components'
+---
+title: Build a Weather Dashboard with Next.js
+---
+
+import { Callout } from 'nextra/components'
+import FeatureCards from '../components/FeatureCards'
+import Hero from '../components/Hero'
 import LiveDemo from '../components/LiveDemo'
 
-# Build a Weather Dashboard with Next.js
-
-This documentation teaches you, step by step, how to build a Weather Dashboard with **Next.js (App Router)**, **TypeScript** and **Tailwind CSS**. The app searches the weather of any city, shows it on a card with a dynamic weather icon, handles loading and errors, and remembers your recent searches.
+<Hero />
 
 ## Try the live demo
 
@@ -19,7 +23,7 @@ Search for a city to see the finished dashboard:
 
 - Setting up a strict TypeScript Next.js project
 - Keeping an API key safe with `.env.local` and a server route
-- Styling a responsive weather card with Tailwind CSS
+- Styling a responsive dashboard with Tailwind CSS
 - Showing dynamic weather icons that match the current conditions
 - Fetching data with `fetch` or `axios`, with typed API responses
 - Handling loading, error, 401 and 404 states
@@ -27,13 +31,7 @@ Search for a city to see the finished dashboard:
 
 ## Start here
 
-<Cards>
-  <Cards.Card title="1. Setup" href="/setup/folder-structure" />
-  <Cards.Card title="2. UI & Styling" href="/guides/ui-styling" />
-  <Cards.Card title="3. Implementation" href="/guides/implementation" />
-  <Cards.Card title="Code Reference" href="/code-reference" />
-  <Cards.Card title="Troubleshooting" href="/troubleshooting" />
-</Cards>
+<FeatureCards />
 
 ## Requirements
 
