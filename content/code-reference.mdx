@@ -2,7 +2,7 @@ import { Callout } from 'nextra/components'
 
 # Code Reference
 
-A quick lookup for every type, function and component in the Weather Dashboard. For explanations, see the [Implementation guide](/guides/implementation).
+A quick lookup for every type, function, component and request in the Weather Dashboard. For explanations, see the [UI & Styling](/guides/ui-styling) and [Implementation](/guides/implementation) guides.
 
 ## Types
 
@@ -11,69 +11,91 @@ Defined in `lib/types.ts`.
 | Type | Fields | Used for |
 | --- | --- | --- |
 | `WeatherCondition` | `id`, `main`, `description`, `icon` | One weather condition, such as light rain |
-| `WeatherData` | `name`, `sys.country`, `main.temp`, `main.feels_like`, `main.humidity`, `weather`, `wind.speed` | The weather of one city |
+| `WeatherData` | `name`, `coord`, `timezone`, `sys`, `main`, `weather`, `wind` | The current weather of one city |
+| `ForecastItem` | `dt`, `main.temp`, `weather`, `pop` | One forecast step, every 3 hours |
+| `ForecastData` | `list` | The raw forecast response |
+| `DashboardData` | `current`, `forecast` | What your own route returns |
+| `RecentCity` | `name`, `country`, `temp`, `icon`, `description` | A saved search |
 | `ApiErrorBody` | `cod`, `message` | The body of an error response |
 | `SearchStatus` | `idle`, `loading`, `error`, `success` | Which screen the dashboard shows |
 
-```ts filename="lib/types.ts"
-export interface WeatherCondition {
-  id: number
-  main: string
-  description: string
-  icon: string
-}
+### Fields you will use most
 
-export interface WeatherData {
-  name: string
-  sys: {
-    country: string
-  }
-  main: {
-    temp: number
-    feels_like: number
-    humidity: number
-  }
-  weather: WeatherCondition[]
-  wind: {
-    speed: number
-  }
-}
-
-export interface ApiErrorBody {
-  cod: number | string
-  message: string
-}
-
-export type SearchStatus = 'idle' | 'loading' | 'error' | 'success'
-```
+| Field | Type | Meaning |
+| --- | --- | --- |
+| `WeatherData.main.temp` | `number` | Temperature in Celsius |
+| `WeatherData.main.feels_like` | `number` | Feels-like temperature in Celsius |
+| `WeatherData.main.humidity` | `number` | Humidity in percent |
+| `WeatherData.main.pressure` | `number` | Pressure in hPa |
+| `WeatherData.wind.speed` | `number` | Wind speed in meters per second |
+| `WeatherData.sys.sunrise`, `sunset` | `number` | Unix time in seconds (UTC) |
+| `WeatherData.timezone` | `number` | The city's offset from UTC, in seconds |
+| `WeatherData.weather[0].icon` | `string` | Icon code such as `10d`. The last letter is `d` (day) or `n` (night) |
+| `ForecastItem.dt` | `number` | Unix time of the forecast step, in seconds (UTC) |
+| `ForecastItem.pop` | `number` | Chance of rain from 0 to 1 |
 
 ## Server route
 
-Defined in `app/api/weather/route.ts`.
+Defined in `app/api/dashboard/route.ts`.
 
 | Route | Method | Query parameter | Description |
 | --- | --- | --- | --- |
-| `/api/weather` | `GET` | `city` (required) | Calls the weather API with your secret key and returns its JSON |
+| `/api/dashboard` | `GET` | `city` (required) | Calls the weather API twice with your secret key and returns the current weather and the forecast together |
+
+Responses:
+
+| Status | Body | When |
+| --- | --- | --- |
+| `200` | `DashboardData` | Both requests succeeded |
+| `400` | `ApiErrorBody` | `city` is missing or empty |
+| `401`, `404`, `429` | `ApiErrorBody` | Passed through from the weather API |
+| `500` | `ApiErrorBody` | `OPENWEATHER_API_KEY` is missing on the server |
+| `502` | `ApiErrorBody` | The weather service could not be reached |
 
 ## Client functions
 
-| Function | File | Parameters | Returns |
-| --- | --- | --- | --- |
-| `fetchWeather` | `lib/weather.ts` | `city: string` | `Promise<WeatherData>` |
-| `messageForStatus` | `lib/weather.ts` | `status: number` | A readable error message |
-| `WeatherApiError` | `lib/weather.ts` | `message: string`, `status: number` | An `Error` subclass with the HTTP `status` |
-| `loadHistory` | `lib/history.ts` | none | `string[]` of recent cities |
-| `addCity` | `lib/history.ts` | `city: string` | The updated list, newest first, at most 5 |
+### `lib/weather.ts`
 
-`fetchWeather` throws a `WeatherApiError` when the network fails or the response status is not OK.
+| Function | Parameters | Returns |
+| --- | --- | --- |
+| `fetchDashboard` | `city: string` | `Promise<DashboardData>` |
+| `messageForStatus` | `status: number` | A readable error message |
+| `WeatherApiError` | `message: string`, `status: number` | An `Error` subclass with the HTTP `status` |
+
+`fetchDashboard` throws a `WeatherApiError` when the network fails or the response status is not OK. A network failure has `status` `0`.
+
+### `lib/history.ts`
+
+| Function | Parameters | Returns |
+| --- | --- | --- |
+| `loadHistory` | none | `RecentCity[]` (empty on the server or on error) |
+| `addCity` | `city: RecentCity` | The updated list, newest first, at most 6 entries |
+
+Saved in the browser under the `localStorage` key `recent-cities-v2`.
+
+### `lib/format.ts`
+
+| Function | Parameters | Returns | Example |
+| --- | --- | --- | --- |
+| `formatTemp` | `celsius: number`, `unit: Unit` | `string` | `28°` |
+| `formatHour` | `unixSeconds: number`, `timezoneOffset: number` | `string` | `3 PM` |
+| `formatClock` | `unixSeconds: number`, `timezoneOffset: number` | `string` | `6:05 AM` |
+| `formatDuration` | `totalSeconds: number` | `string` | `13 hr 2 min` |
+| `localHour` | `unixSeconds: number`, `timezoneOffset: number` | `number` | `15` |
+| `dayKey` | `unixSeconds: number`, `timezoneOffset: number` | `string` | `2026-10-12` |
+| `weekdayShort` | `unixSeconds: number`, `timezoneOffset: number` | `string` | `Mon` |
+
+`Unit` is the type `'C' | 'F'`.
 
 ## Components
 
 | Component | File | Props |
 | --- | --- | --- |
 | `SearchBar` | `components/SearchBar.tsx` | `onSearch: (city: string) => void`, `disabled?: boolean` |
-| `WeatherCard` | `components/WeatherCard.tsx` | `data: WeatherData` |
-| `RecentSearches` | `components/RecentSearches.tsx` | `cities: string[]`, `onSelect: (city: string) => void` |
+| `CurrentWeather` | `components/CurrentWeather.tsx` | `current: WeatherData`, `forecast: ForecastItem[]`, `unit: Unit`, `onUnitChange: (unit: Unit) => void` |
+| `Highlights` | `components/Highlights.tsx` | `current: WeatherData`, `forecast: ForecastItem[]` |
+| `ForecastPanel` | `components/ForecastPanel.tsx` | `current: WeatherData`, `forecast: ForecastItem[]`, `unit: Unit` |
+| `OtherCities` | `components/OtherCities.tsx` | `cities: RecentCity[]`, `activeName: string`, `unit: Unit`, `onSelect: (city: string) => void` |
 
 ## Environment variables
 
@@ -81,7 +103,11 @@ Defined in `app/api/weather/route.ts`.
 | --- | --- | --- |
 | `OPENWEATHER_API_KEY` | Yes | Server only |
 
-## Weather API request
+## Weather API requests
+
+Both requests are made from `app/api/dashboard/route.ts`, never from the browser.
+
+### Current weather
 
 ```text
 GET https://api.openweathermap.org/data/2.5/weather?q=Lahore&appid=YOUR_KEY&units=metric
@@ -91,7 +117,21 @@ GET https://api.openweathermap.org/data/2.5/weather?q=Lahore&appid=YOUR_KEY&unit
 | --- | --- | --- |
 | `q` | `Lahore` | City name |
 | `appid` | `YOUR_KEY` | Your API key |
+| `units` | `metric` | Temperature in Celsius, wind in meters per second |
+
+### 5-day forecast
+
+```text
+GET https://api.openweathermap.org/data/2.5/forecast?lat=31.5497&lon=74.3436&appid=YOUR_KEY&units=metric
+```
+
+| Query parameter | Example | Meaning |
+| --- | --- | --- |
+| `lat`, `lon` | `31.5497`, `74.3436` | Coordinates, taken from the current weather response |
+| `appid` | `YOUR_KEY` | Your API key |
 | `units` | `metric` | Temperature in Celsius |
+
+The response contains a `list` of 40 steps, one every 3 hours, for 5 days.
 
 ## Weather icon URL
 
@@ -99,7 +139,7 @@ GET https://api.openweathermap.org/data/2.5/weather?q=Lahore&appid=YOUR_KEY&unit
 https://openweathermap.org/img/wn/10d@2x.png
 ```
 
-Replace `10d` with the `weather[0].icon` value from the response. The last letter is `d` for day or `n` for night.
+Replace `10d` with the `weather[0].icon` value from the response. Use `@2x` for a larger image, or leave it out for a small one (`10d.png`).
 
 <Callout type="info">
   Something not working? Check the [Troubleshooting](/troubleshooting) page.
