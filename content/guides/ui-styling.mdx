@@ -2,15 +2,36 @@ import { Callout, Steps } from 'nextra/components'
 
 # UI & Styling
 
-In this guide we build the look of the Weather Dashboard: a responsive layout, a search bar, a weather card with **dynamic weather icons**, and a recent searches list, all with **Tailwind CSS**.
+In this guide we build the look of the Weather Dashboard with **Tailwind CSS**: a dark green theme, a search bar, a main weather card with a °C / °F switch, today's highlights, an hourly and weekly forecast, and cards for your recent searches.
 
 <Callout type="info">
-  Complete the [Setup guide](/setup/folder-structure) first. This guide only builds the interface. The data fetching comes in the [Implementation guide](/guides/implementation).
+  Complete the [Setup guide](/setup/folder-structure) first. This guide only builds the interface. Loading the data and putting the pieces together happens in the [Implementation guide](/guides/implementation).
 </Callout>
+
+## The color palette
+
+The whole dashboard uses one family of colors, so every card feels related:
+
+| Role | Tailwind color | Example |
+| --- | --- | --- |
+| Page background | A dark green gradient | `#0d2b1f` to `#04100a` |
+| Cards | `emerald-900` and `emerald-950` with low opacity | `bg-emerald-900/40` |
+| Card outline | `emerald-400` at 15% | `ring-emerald-400/15` |
+| Main text | `emerald-50` | `text-emerald-50` |
+| Secondary text | `emerald-200` at 60 to 80% | `text-emerald-200/70` |
+| Accent (buttons, active tab) | `emerald-400` | `bg-emerald-400` |
+
+Low opacity makes every card show a little of the background behind it, which gives the dark layout depth.
 
 ## 1. Page layout
 
-Content is centered, full width on mobile, and limited by `max-w` on large screens.
+First make sure Tailwind is active. `app/globals.css` should contain only this line:
+
+```css filename="app/globals.css"
+@import "tailwindcss";
+```
+
+Then create the page shell. The content is centered, and the layout becomes wider on large screens:
 
 ```tsx filename="app/layout.tsx"
 import type { ReactNode } from 'react'
@@ -24,10 +45,11 @@ export const metadata = {
 export default function RootLayout({ children }: { children: ReactNode }) {
   return (
     <html lang="en">
-      <body className="min-h-screen bg-slate-100 text-slate-900">
-        <main className="mx-auto w-full max-w-md px-4 py-8 sm:py-12">
-          {children}
-        </main>
+      <body
+        className="min-h-screen text-emerald-50 antialiased"
+        style={{ background: 'radial-gradient(circle at top, #0d2b1f 0%, #04100a 65%)' }}
+      >
+        <main className="mx-auto w-full max-w-6xl px-4 py-8 sm:px-6 sm:py-12">{children}</main>
       </body>
     </html>
   )
@@ -36,76 +58,22 @@ export default function RootLayout({ children }: { children: ReactNode }) {
 
 | Class | Purpose |
 | --- | --- |
-| `min-h-screen` | Page is at least as tall as the screen |
-| `max-w-md` | Limits content width on large screens |
+| `min-h-screen` | The page is at least as tall as the screen |
+| `max-w-6xl` | Limits the content width on large screens |
 | `mx-auto` | Centers the content |
-| `px-4 py-8 sm:py-12` | Small spacing on mobile, larger on bigger screens |
+| `px-4 py-8 sm:px-6 sm:py-12` | Small spacing on mobile, larger on bigger screens |
 
-## 2. Search bar
+The gradient is set with an inline `style` because it uses exact colors that are not part of Tailwind's palette.
 
-A text input and a button. The component only collects the city name and calls `onSearch`. It does not know anything about the API.
+## 2. Allow the weather icons
 
-```tsx filename="components/SearchBar.tsx"
-'use client'
-
-import { useState, type FormEvent } from 'react'
-
-interface SearchBarProps {
-  onSearch: (city: string) => void
-  disabled?: boolean
-}
-
-export default function SearchBar({ onSearch, disabled = false }: SearchBarProps) {
-  const [value, setValue] = useState('')
-
-  function handleSubmit(event: FormEvent<HTMLFormElement>) {
-    event.preventDefault()
-    const city = value.trim()
-    if (city) onSearch(city)
-  }
-
-  return (
-    <form onSubmit={handleSubmit} className="flex gap-2">
-      <label htmlFor="city" className="sr-only">
-        City name
-      </label>
-      <input
-        id="city"
-        type="text"
-        value={value}
-        onChange={(event) => setValue(event.target.value)}
-        placeholder="Search a city, e.g. Lahore"
-        className="min-w-0 flex-1 rounded-lg border border-slate-300 bg-white px-4 py-2.5 outline-none focus:border-violet-500"
-      />
-      <button
-        type="submit"
-        disabled={disabled}
-        className="rounded-lg bg-violet-600 px-5 py-2.5 font-medium text-white hover:bg-violet-700 disabled:opacity-50"
-      >
-        Search
-      </button>
-    </form>
-  )
-}
-```
-
-<Callout type="info">
-  The hidden `label` (class `sr-only`) is for screen readers. It costs nothing and makes the input accessible.
-</Callout>
-
-## 3. Dynamic weather icons
-
-The API returns an icon code for each condition, for example `10d` for rain during the day. The image for that code is available at:
+The weather API returns an icon code for each condition, for example `10d` for rain during the day. The image for that code is available at:
 
 ```text
 https://openweathermap.org/img/wn/10d@2x.png
 ```
 
-The last letter of the code tells you the time of day: `d` for day and `n` for night. The weather data you typed in `lib/types.ts` already contains this code in `weather[0].icon`.
-
-### Allow the image domain
-
-`next/image` only loads images from domains you approve. Add the icon host to `next.config.ts`:
+The last letter tells you the time of day: `d` for day and `n` for night. The `next/image` component only loads images from domains you approve, so add the icon host to `next.config.ts`:
 
 ```ts filename="next.config.ts"
 import type { NextConfig } from 'next'
@@ -129,72 +97,241 @@ export default nextConfig
   Restart the dev server after editing `next.config.ts`. The new setting is not picked up while the server is running.
 </Callout>
 
-## 4. Weather card
+## 3. Formatting helpers
 
-The card shows the city, temperature, icon and description. Its background color depends on the condition, so the card itself changes with the weather.
+Several components convert temperatures and show times. Keep that logic in one file so the components stay simple. Create `lib/format.ts`:
 
-```tsx filename="components/WeatherCard.tsx"
-import Image from 'next/image'
-import type { WeatherData } from '@/lib/types'
+```ts filename="lib/format.ts"
+export type Unit = 'C' | 'F'
 
-function backgroundFor(main: string, icon: string): string {
-  const isNight = icon.endsWith('n')
+export function formatTemp(celsius: number, unit: Unit): string {
+  const value = unit === 'C' ? celsius : (celsius * 9) / 5 + 32
+  return `${Math.round(value)}°`
+}
 
-  switch (main) {
-    case 'Clear':
-      return isNight ? 'bg-indigo-900' : 'bg-sky-500'
-    case 'Clouds':
-      return 'bg-slate-500'
-    case 'Rain':
-    case 'Drizzle':
-      return 'bg-blue-800'
-    case 'Thunderstorm':
-      return 'bg-purple-900'
-    case 'Snow':
-      return 'bg-sky-300'
-    default:
-      return 'bg-slate-400'
+// The API sends times in UTC plus the city's offset in seconds.
+// Adding the offset first lets us read the city's local time with the UTC getters.
+function localDate(unixSeconds: number, timezoneOffset: number): Date {
+  return new Date((unixSeconds + timezoneOffset) * 1000)
+}
+
+function to12Hour(hours: number): { display: number; suffix: 'AM' | 'PM' } {
+  return {
+    display: hours % 12 === 0 ? 12 : hours % 12,
+    suffix: hours >= 12 ? 'PM' : 'AM',
   }
 }
 
-export default function WeatherCard({ data }: { data: WeatherData }) {
-  const condition = data.weather[0]
+export function localHour(unixSeconds: number, timezoneOffset: number): number {
+  return localDate(unixSeconds, timezoneOffset).getUTCHours()
+}
+
+export function formatHour(unixSeconds: number, timezoneOffset: number): string {
+  const { display, suffix } = to12Hour(localHour(unixSeconds, timezoneOffset))
+  return `${display} ${suffix}`
+}
+
+export function formatClock(unixSeconds: number, timezoneOffset: number): string {
+  const date = localDate(unixSeconds, timezoneOffset)
+  const { display, suffix } = to12Hour(date.getUTCHours())
+  const minutes = String(date.getUTCMinutes()).padStart(2, '0')
+  return `${display}:${minutes} ${suffix}`
+}
+
+export function formatDuration(totalSeconds: number): string {
+  const hours = Math.floor(totalSeconds / 3600)
+  const minutes = Math.floor((totalSeconds % 3600) / 60)
+  return `${hours} hr ${minutes} min`
+}
+
+export function dayKey(unixSeconds: number, timezoneOffset: number): string {
+  return localDate(unixSeconds, timezoneOffset).toISOString().slice(0, 10)
+}
+
+export function weekdayShort(unixSeconds: number, timezoneOffset: number): string {
+  return localDate(unixSeconds, timezoneOffset).toLocaleDateString('en-US', {
+    weekday: 'short',
+    timeZone: 'UTC',
+  })
+}
+```
+
+<Callout type="info">
+  Why the offset trick? A visitor in Lahore searching for London should see London's sunrise in London's time, not in their own. The API gives a `timezone` value in seconds for each city, and `localDate` applies it.
+</Callout>
+
+## 4. Search bar
+
+A text input and a button. The component only collects the city name and calls `onSearch`. It does not know anything about the API.
+
+```tsx filename="components/SearchBar.tsx"
+'use client'
+
+import { useState, type FormEvent } from 'react'
+
+interface SearchBarProps {
+  onSearch: (city: string) => void
+  disabled?: boolean
+}
+
+export default function SearchBar({ onSearch, disabled = false }: SearchBarProps) {
+  const [value, setValue] = useState('')
+
+  function handleSubmit(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault()
+    const city = value.trim()
+    if (city) onSearch(city)
+  }
+
+  return (
+    <form
+      onSubmit={handleSubmit}
+      className="flex items-center gap-2 rounded-2xl bg-emerald-900/40 p-2 ring-1 ring-emerald-400/20 backdrop-blur"
+    >
+      <svg
+        aria-hidden="true"
+        viewBox="0 0 24 24"
+        className="ml-3 h-5 w-5 shrink-0 text-emerald-300"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="2"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      >
+        <circle cx="11" cy="11" r="7" />
+        <path d="m20 20-3.5-3.5" />
+      </svg>
+
+      <label htmlFor="city" className="sr-only">
+        City name
+      </label>
+      <input
+        id="city"
+        type="text"
+        value={value}
+        onChange={(event) => setValue(event.target.value)}
+        placeholder="Search city"
+        className="min-w-0 flex-1 bg-transparent px-1 py-2.5 text-emerald-50 outline-none placeholder:text-emerald-200/50"
+      />
+
+      <button
+        type="submit"
+        disabled={disabled}
+        className="rounded-xl bg-emerald-400 px-5 py-2.5 font-semibold text-emerald-950 transition hover:bg-emerald-300 disabled:cursor-not-allowed disabled:opacity-50"
+      >
+        {disabled ? 'Searching...' : 'Search'}
+      </button>
+    </form>
+  )
+}
+```
+
+<Callout type="info">
+  The hidden `label` (class `sr-only`) is for screen readers. It costs nothing and makes the input accessible. The icon is decorative, so it has `aria-hidden`.
+</Callout>
+
+## 5. Main weather card
+
+This card shows the city, the temperature, the weather icon and a **°C / °F switch**. The icon is dynamic: its image comes from the icon code in the API response, so it changes with the conditions and with day or night.
+
+High and Low are calculated from the next 24 hours of the forecast (8 steps of 3 hours), together with the current temperature.
+
+```tsx filename="components/CurrentWeather.tsx"
+import Image from 'next/image'
+import { formatTemp, type Unit } from '@/lib/format'
+import type { ForecastItem, WeatherData } from '@/lib/types'
+
+interface CurrentWeatherProps {
+  current: WeatherData
+  forecast: ForecastItem[]
+  unit: Unit
+  onUnitChange: (unit: Unit) => void
+}
+
+export default function CurrentWeather({
+  current,
+  forecast,
+  unit,
+  onUnitChange,
+}: CurrentWeatherProps) {
+  const condition = current.weather[0]
   if (!condition) return null
+
+  const next24Hours = forecast.slice(0, 8).map((item) => item.main.temp)
+  const high = Math.max(current.main.temp, ...next24Hours)
+  const low = Math.min(current.main.temp, ...next24Hours)
 
   return (
     <section
-      className={`rounded-2xl p-6 text-white shadow-md ${backgroundFor(condition.main, condition.icon)}`}
+      className="relative overflow-hidden rounded-3xl p-6 text-emerald-50 shadow-2xl shadow-black/40 sm:p-8"
+      style={{ background: 'linear-gradient(135deg, #0f4a33 0%, #0a2f21 100%)' }}
     >
-      <p className="text-sm opacity-90">
-        {data.name}, {data.sys.country}
-      </p>
+      <div
+        aria-hidden="true"
+        className="pointer-events-none absolute -right-10 -top-10 h-56 w-56 rounded-full bg-emerald-400/10 blur-3xl"
+      />
 
-      <div className="flex items-center justify-between">
-        <p className="text-6xl font-bold">{Math.round(data.main.temp)}°C</p>
+      <div className="relative flex items-start justify-between gap-4">
+        <p className="inline-flex items-center gap-2 rounded-full bg-white px-4 py-1.5 text-sm font-semibold text-emerald-950">
+          <span aria-hidden="true">📍</span>
+          {current.name}, {current.sys.country}
+        </p>
+
+        <div
+          role="group"
+          aria-label="Temperature unit"
+          className="flex rounded-full bg-emerald-950/60 p-1 text-sm font-semibold"
+        >
+          {(['C', 'F'] as const).map((option) => (
+            <button
+              key={option}
+              type="button"
+              aria-pressed={unit === option}
+              onClick={() => onUnitChange(option)}
+              className={`rounded-full px-3 py-1 transition ${
+                unit === option
+                  ? 'bg-emerald-400 text-emerald-950'
+                  : 'text-emerald-100/70 hover:text-white'
+              }`}
+            >
+              °{option}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      <div className="relative mt-6 flex items-center justify-between gap-4">
+        <div>
+          <p className="text-2xl font-semibold">Weather</p>
+          <p className="text-sm text-emerald-200/70">Now</p>
+        </div>
         <Image
           src={`https://openweathermap.org/img/wn/${condition.icon}@2x.png`}
           alt={condition.description}
-          width={100}
-          height={100}
+          width={160}
+          height={160}
+          className="drop-shadow-xl"
         />
       </div>
 
-      <p className="capitalize">{condition.description}</p>
+      <div className="relative mt-2 flex items-end justify-between gap-4">
+        <div>
+          <p className="text-7xl font-extrabold tracking-tight sm:text-8xl">
+            {formatTemp(current.main.temp, unit)}
+            <span className="text-5xl">{unit}</span>
+          </p>
+          <p className="mt-1 text-sm text-emerald-200/80">
+            Feels like {formatTemp(current.main.feels_like, unit)}
+          </p>
+        </div>
 
-      <dl className="mt-5 grid grid-cols-3 gap-3 text-center text-sm">
-        <div className="rounded-lg bg-white/20 p-3">
-          <dt className="opacity-80">Feels like</dt>
-          <dd className="font-semibold">{Math.round(data.main.feels_like)}°C</dd>
+        <div className="text-right text-sm text-emerald-200/80">
+          <p className="mb-1 capitalize text-emerald-50">{condition.description}</p>
+          <p>
+            High: {formatTemp(high, unit)} · Low: {formatTemp(low, unit)}
+          </p>
         </div>
-        <div className="rounded-lg bg-white/20 p-3">
-          <dt className="opacity-80">Humidity</dt>
-          <dd className="font-semibold">{data.main.humidity}%</dd>
-        </div>
-        <div className="rounded-lg bg-white/20 p-3">
-          <dt className="opacity-80">Wind</dt>
-          <dd className="font-semibold">{data.wind.speed} m/s</dd>
-        </div>
-      </dl>
+      </div>
     </section>
   )
 }
@@ -202,39 +339,337 @@ export default function WeatherCard({ data }: { data: WeatherData }) {
 
 A few things worth noticing:
 
-- `data.weather[0]` can be `undefined` in strict mode (`noUncheckedIndexedAccess`), so we check it before using it. This is the reason that option was turned on in the setup guide.
-- `main` is the broad condition group, such as `Clear`, `Clouds`, `Rain` or `Snow`. Mist, haze, fog and similar conditions fall into the `default` case.
-- The icon image gives the exact condition. The background color gives the overall mood.
+- `current.weather[0]` can be `undefined` in strict mode (`noUncheckedIndexedAccess`), so we check it before using it. This is the reason that option was turned on in the setup guide.
+- The `unit` state lives in the page, not in this component. The card only receives `unit` and a function to change it, so every other card can use the same unit.
+- The weather API also returns `temp_min` and `temp_max`, but for a single city they are often identical to the current temperature. The forecast gives more useful values.
 
-<Callout type="warning">
-  Tailwind cannot detect dynamic class names such as `` `bg-${color}-500` ``. Always write the full class name, like `bg-sky-500` above.
+## 6. Today's highlights
+
+Four small cards: chance of rain, wind, humidity and pressure. The rain chart is plain `div` bars, so no chart library is needed. The API gives the chance of rain (`pop`) as a number from 0 to 1.
+
+```tsx filename="components/Highlights.tsx"
+import type { ReactNode } from 'react'
+import { formatHour } from '@/lib/format'
+import type { ForecastItem, WeatherData } from '@/lib/types'
+
+interface HighlightsProps {
+  current: WeatherData
+  forecast: ForecastItem[]
+}
+
+interface CardProps {
+  title: string
+  className?: string
+  children: ReactNode
+}
+
+function Card({ title, className = '', children }: CardProps) {
+  return (
+    <div className={`rounded-2xl bg-emerald-950/50 p-4 ring-1 ring-emerald-400/15 ${className}`}>
+      <p className="mb-3 text-sm text-emerald-200/80">{title}</p>
+      {children}
+    </div>
+  )
+}
+
+function Meter({ percent }: { percent: number }) {
+  return (
+    <div className="mt-3 h-2 w-full overflow-hidden rounded-full bg-emerald-900">
+      <div
+        className="h-full rounded-full bg-emerald-400"
+        style={{ width: `${Math.min(Math.max(percent, 0), 100)}%` }}
+      />
+    </div>
+  )
+}
+
+export default function Highlights({ current, forecast }: HighlightsProps) {
+  const slots = forecast.slice(0, 8)
+  const timezone = current.timezone
+
+  return (
+    <section className="rounded-3xl bg-emerald-900/30 p-6 ring-1 ring-emerald-400/15">
+      <h2 className="mb-4 text-xl font-semibold">Today&apos;s Highlight</h2>
+
+      <div className="grid grid-cols-2 gap-3">
+        <Card title="Chances of Rain" className="col-span-2">
+          <div className="flex gap-2">
+            {slots.map((item) => {
+              const percent = Math.round(item.pop * 100)
+              return (
+                <div key={item.dt} className="flex flex-1 flex-col items-center gap-1">
+                  <span className="text-[10px] text-emerald-200/70">{percent}%</span>
+                  <div className="flex h-16 w-full items-end">
+                    <div
+                      className="w-full rounded-full bg-emerald-400"
+                      style={{ height: `${Math.max(percent, 5)}%` }}
+                    />
+                  </div>
+                  <span className="text-[10px] text-emerald-200/70">
+                    {formatHour(item.dt, timezone)}
+                  </span>
+                </div>
+              )
+            })}
+          </div>
+        </Card>
+
+        <Card title="Wind Status">
+          <p className="text-2xl font-semibold">
+            {current.wind.speed} <span className="text-sm font-normal">m/s</span>
+          </p>
+          <Meter percent={(current.wind.speed / 20) * 100} />
+        </Card>
+
+        <Card title="Humidity">
+          <p className="text-2xl font-semibold">{current.main.humidity}%</p>
+          <Meter percent={current.main.humidity} />
+        </Card>
+
+        <Card title="Pressure" className="col-span-2">
+          <p className="text-2xl font-semibold">
+            {current.main.pressure} <span className="text-sm font-normal">hPa</span>
+          </p>
+        </Card>
+      </div>
+    </section>
+  )
+}
+```
+
+<Callout type="info">
+  If the rain chance is 0% for every step, the bars stay at a small minimum height (5%) so you can still see them. That is correct data, not a bug.
 </Callout>
 
-## 5. Recent searches list
+<Callout type="warning">
+  Tailwind cannot detect dynamic class names such as `` `bg-${color}-500` ``. Always write the full class name. When a value really is dynamic, like the bar height, use an inline `style` as above.
+</Callout>
 
-This component only displays the list and reports a click. Saving the list comes in the Implementation guide.
+## 7. Hourly and weekly forecast
 
-```tsx filename="components/RecentSearches.tsx"
-interface RecentSearchesProps {
-  cities: string[]
+One panel with two views, switched by **Today** and **Week** buttons. Today shows the next five 3-hour steps. Week groups the forecast by day and shows the high, low and an icon for each day. The right-hand box shows sunrise, sunset and day length.
+
+```tsx filename="components/ForecastPanel.tsx"
+'use client'
+
+import Image from 'next/image'
+import { useState } from 'react'
+import {
+  dayKey,
+  formatClock,
+  formatDuration,
+  formatHour,
+  formatTemp,
+  localHour,
+  weekdayShort,
+  type Unit,
+} from '@/lib/format'
+import type { ForecastItem, WeatherData } from '@/lib/types'
+
+type Tab = 'today' | 'week'
+
+interface ForecastPanelProps {
+  current: WeatherData
+  forecast: ForecastItem[]
+  unit: Unit
+}
+
+interface DaySummary {
+  key: string
+  label: string
+  high: number
+  low: number
+  icon: string
+}
+
+function summarizeDays(forecast: ForecastItem[], timezone: number): DaySummary[] {
+  const groups = new Map<string, ForecastItem[]>()
+
+  for (const item of forecast) {
+    const key = dayKey(item.dt, timezone)
+    groups.set(key, [...(groups.get(key) ?? []), item])
+  }
+
+  return Array.from(groups.entries())
+    .slice(0, 5)
+    .map(([key, items], index) => {
+      const temps = items.map((item) => item.main.temp)
+      // Use the step closest to midday as the icon for the whole day.
+      const midday = items.reduce((best, item) =>
+        Math.abs(localHour(item.dt, timezone) - 12) < Math.abs(localHour(best.dt, timezone) - 12)
+          ? item
+          : best,
+      )
+
+      return {
+        key,
+        label: index === 0 ? 'Today' : weekdayShort(midday.dt, timezone),
+        high: Math.max(...temps),
+        low: Math.min(...temps),
+        icon: midday.weather[0]?.icon ?? '01d',
+      }
+    })
+}
+
+function SunRow({ label, value }: { label: string; value: string }) {
+  return (
+    <div>
+      <p className="text-xs text-emerald-200/70">{label}</p>
+      <p className="text-xl font-semibold">{value}</p>
+    </div>
+  )
+}
+
+export default function ForecastPanel({ current, forecast, unit }: ForecastPanelProps) {
+  const [tab, setTab] = useState<Tab>('today')
+  const timezone = current.timezone
+  const hours = forecast.slice(0, 5)
+  const days = summarizeDays(forecast, timezone)
+  const dayLength = current.sys.sunset - current.sys.sunrise
+
+  return (
+    <section className="grid gap-4 rounded-3xl bg-emerald-900/30 p-6 ring-1 ring-emerald-400/15 sm:grid-cols-3">
+      <div className="sm:col-span-2">
+        <div className="mb-4 flex items-center justify-between">
+          <h2 className="text-xl font-semibold">Today / Week</h2>
+          <div
+            role="group"
+            aria-label="Forecast range"
+            className="flex rounded-full bg-emerald-950/60 p-1 text-sm font-semibold"
+          >
+            {(['today', 'week'] as const).map((option) => (
+              <button
+                key={option}
+                type="button"
+                aria-pressed={tab === option}
+                onClick={() => setTab(option)}
+                className={`rounded-full px-3 py-1 capitalize transition ${
+                  tab === option
+                    ? 'bg-emerald-400 text-emerald-950'
+                    : 'text-emerald-100/70 hover:text-white'
+                }`}
+              >
+                {option}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        {tab === 'today' ? (
+          <ul className="grid grid-cols-5 gap-2">
+            {hours.map((item) => {
+              const condition = item.weather[0]
+              return (
+                <li
+                  key={item.dt}
+                  className="flex flex-col items-center gap-1 rounded-full bg-emerald-800/40 px-1 py-3 text-xs ring-1 ring-emerald-400/15"
+                >
+                  <span className="text-emerald-200/80">{formatHour(item.dt, timezone)}</span>
+                  {condition && (
+                    <Image
+                      src={`https://openweathermap.org/img/wn/${condition.icon}.png`}
+                      alt={condition.description}
+                      width={40}
+                      height={40}
+                    />
+                  )}
+                  <span className="font-semibold">{formatTemp(item.main.temp, unit)}</span>
+                </li>
+              )
+            })}
+          </ul>
+        ) : (
+          <ul className="space-y-2">
+            {days.map((day) => (
+              <li
+                key={day.key}
+                className="flex items-center justify-between rounded-2xl bg-emerald-800/40 px-4 py-1 ring-1 ring-emerald-400/15"
+              >
+                <span className="w-16 font-medium">{day.label}</span>
+                <Image
+                  src={`https://openweathermap.org/img/wn/${day.icon}.png`}
+                  alt=""
+                  width={40}
+                  height={40}
+                />
+                <span className="text-sm font-semibold">
+                  {formatTemp(day.high, unit)}{' '}
+                  <span className="font-normal text-emerald-200/60">
+                    / {formatTemp(day.low, unit)}
+                  </span>
+                </span>
+              </li>
+            ))}
+          </ul>
+        )}
+      </div>
+
+      <div className="space-y-4 rounded-2xl bg-emerald-950/50 p-4 ring-1 ring-emerald-400/15">
+        <SunRow label="Sunrise" value={formatClock(current.sys.sunrise, timezone)} />
+        <SunRow label="Sunset" value={formatClock(current.sys.sunset, timezone)} />
+        <SunRow label="Day length" value={formatDuration(dayLength)} />
+      </div>
+    </section>
+  )
+}
+```
+
+<Callout type="info">
+  The weather API returns a forecast every 3 hours for 5 days, which is 40 steps. `summarizeDays` groups them by calendar day and picks the step closest to midday for each day's icon. The last day can have fewer steps, so its high and low may cover only part of that day.
+</Callout>
+
+## 8. Other cities
+
+Each search is saved with its temperature, icon and description (see the [Implementation guide](/guides/implementation)). This component shows those saved searches as cards. Clicking a card searches that city again.
+
+```tsx filename="components/OtherCities.tsx"
+import Image from 'next/image'
+import { formatTemp, type Unit } from '@/lib/format'
+import type { RecentCity } from '@/lib/types'
+
+interface OtherCitiesProps {
+  cities: RecentCity[]
+  activeName: string
+  unit: Unit
   onSelect: (city: string) => void
 }
 
-export default function RecentSearches({ cities, onSelect }: RecentSearchesProps) {
-  if (cities.length === 0) return null
+export default function OtherCities({ cities, activeName, unit, onSelect }: OtherCitiesProps) {
+  const others = cities
+    .filter((city) => city.name.toLowerCase() !== activeName.toLowerCase())
+    .slice(0, 4)
+
+  if (others.length === 0) return null
 
   return (
-    <section className="mt-6">
-      <h2 className="mb-2 text-sm font-semibold text-slate-600">Recent searches</h2>
-      <ul className="flex flex-wrap gap-2">
-        {cities.map((city) => (
-          <li key={city}>
+    <section>
+      <h2 className="mb-1 text-xl font-semibold">Other Cities</h2>
+      <p className="mb-3 text-xs text-emerald-200/60">
+        Temperatures from your last search of each city
+      </p>
+
+      <ul className="grid grid-cols-2 gap-3">
+        {others.map((city) => (
+          <li key={city.name}>
             <button
               type="button"
-              onClick={() => onSelect(city)}
-              className="rounded-full border border-slate-300 bg-white px-3 py-1 text-sm hover:border-violet-400"
+              onClick={() => onSelect(city.name)}
+              className="flex w-full items-center justify-between rounded-2xl bg-emerald-900/40 p-4 text-left ring-1 ring-emerald-400/15 transition hover:bg-emerald-800/50 hover:ring-emerald-400/40"
             >
-              {city}
+              <div>
+                <p className="text-2xl font-semibold">
+                  {formatTemp(city.temp, unit)}
+                  <span className="text-base">{unit}</span>
+                </p>
+                <p className="text-sm">{city.name}</p>
+                <p className="text-xs capitalize text-emerald-200/70">{city.description}</p>
+              </div>
+              <Image
+                src={`https://openweathermap.org/img/wn/${city.icon}.png`}
+                alt=""
+                width={48}
+                height={48}
+              />
             </button>
           </li>
         ))}
@@ -244,26 +679,30 @@ export default function RecentSearches({ cities, onSelect }: RecentSearchesProps
 }
 ```
 
-## 6. Check responsiveness
+<Callout type="warning">
+  The temperatures on these cards are a snapshot from the last time you searched each city, not live data. That is why the card list says so. Clicking a card fetches fresh data.
+</Callout>
 
-Open browser DevTools (**F12**), toggle the device toolbar, and test these sizes:
+## 9. Check responsiveness
+
+Open browser DevTools (**F12**), toggle the device toolbar (**Ctrl + Shift + M**), and test these sizes:
 
 <Steps>
 
 ### Mobile (375px)
 
-The search bar and card use the full width. The three small boxes (feels like, humidity, wind) stay in one row.
+Every card stacks in one column. The search bar sits under the title, and the five hourly boxes stay in one row.
 
 ### Tablet (768px)
 
-The content stays centered at `max-w-md` with extra space on both sides.
+The forecast panel shows the hourly boxes and the sunrise box side by side.
 
 ### Desktop (1280px)
 
-Same centered column. A narrow column is deliberate, because a weather card reads best at this width.
+The page uses a 5-column grid: the main card and forecast take 3 columns on the left, and the highlights and other cities take 2 columns on the right.
 
 </Steps>
 
 <Callout type="info">
-  Next: the [Implementation guide](/guides/implementation), where we build the server route, fetch the data, and add loading and error states.
+  Next: the [Implementation guide](/guides/implementation), where we build the server route, load the data, add loading and error states, and put all these components together on one page.
 </Callout>
