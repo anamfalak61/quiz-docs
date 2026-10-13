@@ -13,6 +13,22 @@ This project needs very few packages.
 | `tailwindcss` | Styling |
 | `eslint` | Code quality checks |
 
+<Callout type="warning">
+  If your Tailwind classes have no effect (the page looks unstyled and icons appear huge), check that `postcss.config.mjs` exists in the project root. If it is missing, install the plugin with `npm install -D @tailwindcss/postcss`, then create the file:
+
+```js filename="postcss.config.mjs"
+  const config = {
+    plugins: {
+      '@tailwindcss/postcss': {},
+    },
+  }
+
+  export default config
+```
+
+  Also make sure `app/globals.css` contains `@import "tailwindcss";`, then restart the dev server.
+</Callout>
+
 ## Optional: axios
 
 ```bash

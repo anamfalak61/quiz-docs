@@ -21,7 +21,7 @@ In the project root (next to `package.json`), create this file:
 OPENWEATHER_API_KEY=paste_your_key_here
 ```
 
-Notice there is **no `NEXT_PUBLIC_` prefix**. That prefix tells Next.js to include the variable in the browser code. Without it, the variable exists only on the server.
+Use no spaces around `=` and no quotes around the key. Notice there is **no `NEXT_PUBLIC_` prefix**. That prefix tells Next.js to include the variable in the browser code. Without it, the variable exists only on the server.
 
 | Variable name | Where it is available |
 | --- | --- |
@@ -36,7 +36,7 @@ Notice there is **no `NEXT_PUBLIC_` prefix**. That prefix tells Next.js to inclu
 
 Only server code, such as a Route Handler, can read it:
 
-```ts filename="app/api/weather/route.ts"
+```ts filename="app/api/dashboard/route.ts"
 const apiKey = process.env.OPENWEATHER_API_KEY
 
 if (!apiKey) {
@@ -61,3 +61,18 @@ OPENWEATHER_API_KEY=
 <Callout type="info">
   After changing `.env.local`, stop the dev server and run `npm run dev` again. Otherwise the new value is not loaded.
 </Callout>
+
+## Add the key when you deploy
+
+`.env.local` is not uploaded to GitHub, so your host does not have the key. On Vercel, open **Project Settings**, then **Environment Variables**, and add one entry:
+
+| Field | What to write |
+| --- | --- |
+| **Key** | `OPENWEATHER_API_KEY` (the variable name) |
+| **Value** | Your real API key |
+
+<Callout type="warning">
+  The **Key** field is the variable name, not your API key. Putting the API key in the wrong field is a common mistake. After changing a variable, redeploy so the new value is used.
+</Callout>
+
+Never paste your key into chats, screenshots or links. If it is ever exposed, create a new key in your OpenWeather account and replace the old one.

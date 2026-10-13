@@ -9,23 +9,29 @@ The Weather Dashboard is organized so that every folder has one clear job. This 
     <FileTree.Folder name="app" defaultOpen>
       <FileTree.File name="layout.tsx" />
       <FileTree.File name="page.tsx" />
+      <FileTree.File name="globals.css" />
       <FileTree.Folder name="api" defaultOpen>
-        <FileTree.Folder name="weather" defaultOpen>
+        <FileTree.Folder name="dashboard" defaultOpen>
           <FileTree.File name="route.ts" />
         </FileTree.Folder>
       </FileTree.Folder>
     </FileTree.Folder>
     <FileTree.Folder name="components" defaultOpen>
       <FileTree.File name="SearchBar.tsx" />
-      <FileTree.File name="WeatherCard.tsx" />
-      <FileTree.File name="RecentSearches.tsx" />
+      <FileTree.File name="CurrentWeather.tsx" />
+      <FileTree.File name="ForecastPanel.tsx" />
+      <FileTree.File name="Highlights.tsx" />
+      <FileTree.File name="OtherCities.tsx" />
     </FileTree.Folder>
     <FileTree.Folder name="lib" defaultOpen>
       <FileTree.File name="types.ts" />
       <FileTree.File name="weather.ts" />
       <FileTree.File name="history.ts" />
+      <FileTree.File name="format.ts" />
     </FileTree.Folder>
     <FileTree.File name=".env.local" />
+    <FileTree.File name="next.config.ts" />
+    <FileTree.File name="postcss.config.mjs" />
     <FileTree.File name="tsconfig.json" />
   </FileTree.Folder>
 </FileTree>
@@ -35,13 +41,19 @@ The Weather Dashboard is organized so that every folder has one clear job. This 
 | Folder / File | Purpose |
 | --- | --- |
 | `app/page.tsx` | The dashboard page the user sees |
-| `app/api/weather/route.ts` | A server route that calls the weather API with your secret key |
-| `components/` | Reusable UI pieces: search box, weather card, history list |
-| `lib/types.ts` | TypeScript types for the API response |
-| `lib/weather.ts` | The function the browser uses to request weather from your route |
+| `app/layout.tsx` | The page shell: background, width and metadata |
+| `app/api/dashboard/route.ts` | A server route that calls the weather API with your secret key |
+| `components/SearchBar.tsx` | The city search box |
+| `components/CurrentWeather.tsx` | The main card: city, temperature, icon and the °C / °F switch |
+| `components/Highlights.tsx` | Chance of rain, wind, humidity and pressure |
+| `components/ForecastPanel.tsx` | The hourly and 5-day forecast, plus sunrise and sunset |
+| `components/OtherCities.tsx` | Cards for your recent searches |
+| `lib/types.ts` | TypeScript types for the API responses |
+| `lib/weather.ts` | The function the browser uses to call your route |
 | `lib/history.ts` | Saves and loads recent searches |
+| `lib/format.ts` | Temperature conversion and time formatting helpers |
 | `.env.local` | Your secret API key, never committed to Git |
 
 <Callout type="info">
-  The browser never talks to the weather API directly. It calls `app/api/weather/route.ts`, and only that file knows the API key. You will build it in the [Implementation guide](/guides/implementation).
+  The browser never talks to the weather API directly. It calls `app/api/dashboard/route.ts`, and only that file knows the API key. You will build it in the [Implementation guide](/guides/implementation).
 </Callout>
