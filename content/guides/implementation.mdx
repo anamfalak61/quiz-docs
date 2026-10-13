@@ -2,71 +2,89 @@ import { Callout, Steps } from 'nextra/components'
 
 # Implementation
 
-In this guide we connect the Weather Dashboard to the weather API. You will build a **server route** that keeps your API key secret, a typed fetch function, loading and error states, city search, and a recent searches history.
+In this guide we connect the Weather Dashboard to the weather API. You will build a **server route** that keeps your API key secret, a typed fetch function, loading and error states, city search, and a recent searches history. At the end you put all the components together on one page.
 
 <Callout type="info">
-  Complete [Setup](/setup/folder-structure) and [UI & Styling](/guides/ui-styling) first. This guide uses the `SearchBar`, `WeatherCard` and `RecentSearches` components from there, and the key from your `.env.local`.
+  Complete [Setup](/setup/folder-structure) and [UI & Styling](/guides/ui-styling) first. This guide uses the types from Setup, the components from UI & Styling, and the key in your `.env.local`.
 </Callout>
 
 ## How the data flows
 
 ```text
-Browser  →  /api/weather?city=Lahore  →  Weather API
-            (your server route)           (key added here)
+Browser  →  /api/dashboard?city=Lahore  →  Weather API (current weather)
+            (your server route)          →  Weather API (forecast)
+                                            (key added on the server)
 ```
 
 The browser never sees the API key. It only talks to your own route, and the route adds the key on the server.
 
-## 1. Add one more type
+## 1. Build the server route
 
-Add this to the end of `lib/types.ts`:
+Create `app/api/dashboard/route.ts`. It makes two requests and returns both results together:
 
-```ts filename="lib/types.ts"
-export type SearchStatus = 'idle' | 'loading' | 'error' | 'success'
-```
+1. **Current weather** for the city name. The response contains the city's coordinates.
+2. **Forecast** for those coordinates. The forecast request needs a latitude and a longitude, which is why it has to come second.
 
-`SearchStatus` lists every screen the dashboard can be in. Because it is a union type, TypeScript warns you if you forget to handle one of them.
-
-## 2. Build the server route
-
-Create `app/api/weather/route.ts`:
-
-```ts filename="app/api/weather/route.ts"
+```ts filename="app/api/dashboard/route.ts"
 import { NextResponse } from 'next/server'
-import type { ApiErrorBody, WeatherData } from '@/lib/types'
+import type { ApiErrorBody, DashboardData, ForecastData, WeatherData } from '@/lib/types'
 
-const BASE_URL = 'https://api.openweathermap.org/data/2.5/weather'
+const BASE_URL = 'https://api.openweathermap.org/data/2.5'
+
+function errorBody(status: number, message: string) {
+  return NextResponse.json({ cod: status, message }, { status })
+}
 
 export async function GET(request: Request) {
   const apiKey = process.env.OPENWEATHER_API_KEY
 
   if (!apiKey) {
-    return NextResponse.json(
-      { cod: 500, message: 'The server is missing OPENWEATHER_API_KEY.' },
-      { status: 500 },
-    )
+    return errorBody(500, 'The server is missing OPENWEATHER_API_KEY.')
   }
 
   const city = new URL(request.url).searchParams.get('city')?.trim()
 
   if (!city) {
-    return NextResponse.json({ cod: 400, message: 'City is required.' }, { status: 400 })
+    return errorBody(400, 'City is required.')
   }
 
-  const url = `${BASE_URL}?q=${encodeURIComponent(city)}&appid=${apiKey}&units=metric`
-
-  let response: Response
+  let currentResponse: Response
   try {
-    response = await fetch(url, { cache: 'no-store' })
-  } catch {
-    return NextResponse.json(
-      { cod: 502, message: 'Could not reach the weather service.' },
-      { status: 502 },
+    currentResponse = await fetch(
+      `${BASE_URL}/weather?q=${encodeURIComponent(city)}&appid=${apiKey}&units=metric`,
+      { cache: 'no-store' },
     )
+  } catch {
+    return errorBody(502, 'Could not reach the weather service.')
   }
 
-  const body: WeatherData | ApiErrorBody = await response.json()
-  return NextResponse.json(body, { status: response.status })
+  if (!currentResponse.ok) {
+    const error: ApiErrorBody = await currentResponse.json()
+    return NextResponse.json(error, { status: currentResponse.status })
+  }
+
+  const current: WeatherData = await currentResponse.json()
+  const { lat, lon } = current.coord
+
+  let forecastResponse: Response
+  try {
+    forecastResponse = await fetch(
+      `${BASE_URL}/forecast?lat=${lat}&lon=${lon}&appid=${apiKey}&units=metric`,
+      { cache: 'no-store' },
+    )
+  } catch {
+    return errorBody(502, 'Could not reach the weather service.')
+  }
+
+  if (!forecastResponse.ok) {
+    const error: ApiErrorBody = await forecastResponse.json()
+    return NextResponse.json(error, { status: forecastResponse.status })
+  }
+
+  const forecast: ForecastData = await forecastResponse.json()
+  const body: DashboardData = { current, forecast: forecast.list }
+
+  return NextResponse.json(body)
 }
 ```
 
@@ -75,28 +93,30 @@ What this route does:
 - Reads the key from `process.env`. This only works on the server.
 - Rejects an empty city with `400` before calling the API.
 - `encodeURIComponent` makes names like `New York` safe to put in a URL.
-- It passes the API's status code through, so a `401` or `404` from the weather API reaches your UI unchanged.
+- `units=metric` asks for Celsius. The °F switch converts in the browser, so no second request is needed.
+- It passes the API's own status code through, so a `401` or `404` from the weather API reaches your UI unchanged.
+- `cache: 'no-store'` makes sure you always get fresh weather.
 
 ### Test the route
 
 Start the app and open this address in the browser:
 
 ```text
-http://localhost:3000/api/weather?city=Lahore
+http://localhost:3000/api/dashboard?city=Lahore
 ```
 
-You should see the weather JSON. Now open DevTools (**F12**), go to the **Network** tab and click the request. The request URL contains your own address only, with **no `appid`**. That is the proof that the key stays on the server.
+You should see JSON with two parts: `current` (an object) and `forecast` (a long list). Now open DevTools (**F12**), go to the **Network** tab and click the request. The request URL contains your own address only, with **no `appid`**. That is the proof that the key stays on the server.
 
 <Callout type="warning">
   Never put the API key in a file inside `components/` or in a page marked `'use client'`. Anything there is sent to the browser.
 </Callout>
 
-## 3. Fetch from the browser
+## 2. Fetch from the browser
 
 Create `lib/weather.ts`. It calls your route and turns every failure into a readable message.
 
 ```ts filename="lib/weather.ts"
-import type { WeatherData } from '@/lib/types'
+import type { DashboardData } from '@/lib/types'
 
 export class WeatherApiError extends Error {
   status: number
@@ -125,11 +145,11 @@ export function messageForStatus(status: number): string {
   }
 }
 
-export async function fetchWeather(city: string): Promise<WeatherData> {
+export async function fetchDashboard(city: string): Promise<DashboardData> {
   let response: Response
 
   try {
-    response = await fetch(`/api/weather?city=${encodeURIComponent(city)}`)
+    response = await fetch(`/api/dashboard?city=${encodeURIComponent(city)}`)
   } catch {
     throw new WeatherApiError('Network error. Please check your internet connection.', 0)
   }
@@ -138,7 +158,7 @@ export async function fetchWeather(city: string): Promise<WeatherData> {
     throw new WeatherApiError(messageForStatus(response.status), response.status)
   }
 
-  return (await response.json()) as WeatherData
+  return (await response.json()) as DashboardData
 }
 ```
 
@@ -147,21 +167,21 @@ export async function fetchWeather(city: string): Promise<WeatherData> {
 </Callout>
 
 <Callout type="info">
-  `as WeatherData` tells TypeScript to trust the shape of the response. It is not a runtime check. That is acceptable here because the data comes from your own route.
+  `as DashboardData` tells TypeScript to trust the shape of the response. It is not a runtime check. That is acceptable here because the data comes from your own route.
 </Callout>
 
 ### The same call with axios
 
-If you prefer `axios` (`npm install axios`), `axios` throws automatically for 4xx and 5xx statuses:
+If you prefer `axios` (`npm install axios`), it throws automatically for 4xx and 5xx statuses:
 
 ```ts filename="lib/weather.axios.ts"
 import axios, { AxiosError } from 'axios'
 import { WeatherApiError, messageForStatus } from '@/lib/weather'
-import type { WeatherData } from '@/lib/types'
+import type { DashboardData } from '@/lib/types'
 
-export async function fetchWeatherWithAxios(city: string): Promise<WeatherData> {
+export async function fetchDashboardWithAxios(city: string): Promise<DashboardData> {
   try {
-    const { data } = await axios.get<WeatherData>('/api/weather', { params: { city } })
+    const { data } = await axios.get<DashboardData>('/api/dashboard', { params: { city } })
     return data
   } catch (error) {
     if (error instanceof AxiosError && error.response) {
@@ -172,29 +192,31 @@ export async function fetchWeatherWithAxios(city: string): Promise<WeatherData> 
 }
 ```
 
-## 4. Save recent searches
+## 3. Save recent searches
 
-We store the last five cities in the browser with `localStorage`.
+We store the last six searches in the browser with `localStorage`. Each entry keeps the city name, country, temperature, icon and description, which is what the **Other Cities** cards need.
 
 ```ts filename="lib/history.ts"
-const KEY = 'recent-cities'
-const MAX_ENTRIES = 5
+import type { RecentCity } from '@/lib/types'
 
-export function loadHistory(): string[] {
+const KEY = 'recent-cities-v2'
+const MAX_ENTRIES = 6
+
+export function loadHistory(): RecentCity[] {
   if (typeof window === 'undefined') return []
 
   try {
     const raw = window.localStorage.getItem(KEY)
-    return raw ? (JSON.parse(raw) as string[]) : []
+    return raw ? (JSON.parse(raw) as RecentCity[]) : []
   } catch {
     return []
   }
 }
 
-export function addCity(city: string): string[] {
+export function addCity(city: RecentCity): RecentCity[] {
   const updated = [
     city,
-    ...loadHistory().filter((item) => item.toLowerCase() !== city.toLowerCase()),
+    ...loadHistory().filter((item) => item.name.toLowerCase() !== city.name.toLowerCase()),
   ].slice(0, MAX_ENTRIES)
 
   try {
@@ -213,26 +235,34 @@ export function addCity(city: string): string[] {
   `localStorage` does not exist on the server, which is why `loadHistory` checks `typeof window`. We also read it inside `useEffect` in the next step, so the server and the browser render the same HTML first.
 </Callout>
 
-## 5. Build the dashboard page
+<Callout type="info">
+  The storage key ends in `-v2`. If you change the shape of the saved data later, change the key too, so old saved data in a visitor's browser is ignored instead of breaking the page.
+</Callout>
 
-The page is a small state machine driven by `status`: idle, loading, error and success.
+## 4. Build the dashboard page
+
+The page is a small state machine driven by `status`: idle, loading, error and success. It also holds the temperature unit and the saved searches, and passes them down to the components.
 
 ```tsx filename="app/page.tsx"
 'use client'
 
 import { useEffect, useState } from 'react'
-import RecentSearches from '@/components/RecentSearches'
+import CurrentWeather from '@/components/CurrentWeather'
+import ForecastPanel from '@/components/ForecastPanel'
+import Highlights from '@/components/Highlights'
+import OtherCities from '@/components/OtherCities'
 import SearchBar from '@/components/SearchBar'
-import WeatherCard from '@/components/WeatherCard'
+import type { Unit } from '@/lib/format'
 import { addCity, loadHistory } from '@/lib/history'
-import type { SearchStatus, WeatherData } from '@/lib/types'
-import { fetchWeather, WeatherApiError } from '@/lib/weather'
+import type { DashboardData, RecentCity, SearchStatus } from '@/lib/types'
+import { fetchDashboard, WeatherApiError } from '@/lib/weather'
 
 export default function Home() {
   const [status, setStatus] = useState<SearchStatus>('idle')
-  const [weather, setWeather] = useState<WeatherData | null>(null)
+  const [data, setData] = useState<DashboardData | null>(null)
+  const [unit, setUnit] = useState<Unit>('C')
   const [errorMessage, setErrorMessage] = useState('')
-  const [history, setHistory] = useState<string[]>([])
+  const [history, setHistory] = useState<RecentCity[]>([])
 
   useEffect(() => {
     setHistory(loadHistory())
@@ -243,9 +273,19 @@ export default function Home() {
     setErrorMessage('')
 
     try {
-      const data = await fetchWeather(city)
-      setWeather(data)
-      setHistory(addCity(data.name))
+      const result = await fetchDashboard(city)
+      const condition = result.current.weather[0]
+
+      setData(result)
+      setHistory(
+        addCity({
+          name: result.current.name,
+          country: result.current.sys.country,
+          temp: result.current.main.temp,
+          icon: condition?.icon ?? '01d',
+          description: condition?.description ?? '',
+        }),
+      )
       setStatus('success')
     } catch (error) {
       setErrorMessage(
@@ -259,29 +299,74 @@ export default function Home() {
 
   return (
     <div>
-      <h1 className="mb-6 text-2xl font-bold">Weather Dashboard</h1>
+      <header className="mb-6 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+        <h1 className="text-3xl font-extrabold tracking-tight">
+          Weather <span className="text-emerald-400">Dashboard</span>
+        </h1>
+        <div className="w-full sm:max-w-md">
+          <SearchBar onSearch={search} disabled={status === 'loading'} />
+        </div>
+      </header>
 
-      <SearchBar onSearch={search} disabled={status === 'loading'} />
-      <RecentSearches cities={history} onSelect={search} />
-
-      <div className="mt-6">
+      <div className="mt-8">
         {status === 'idle' && (
-          <p className="text-slate-600">Search for a city to see its weather.</p>
+          <div className="rounded-3xl border-2 border-dashed border-emerald-400/30 bg-emerald-900/20 p-10 text-center">
+            <p aria-hidden="true" className="text-4xl">
+              ⛅
+            </p>
+            <p className="mt-3 text-emerald-100/80">Search for a city to see its weather.</p>
+          </div>
         )}
 
         {status === 'loading' && (
-          <p role="status" className="text-slate-600">
-            Loading weather...
-          </p>
+          <div
+            role="status"
+            aria-label="Loading weather"
+            className="animate-pulse rounded-3xl bg-emerald-900/40 p-8"
+          >
+            <div className="h-4 w-1/4 rounded-full bg-emerald-800/70" />
+            <div className="mt-8 h-24 w-1/2 rounded-2xl bg-emerald-800/70" />
+            <div className="mt-6 h-4 w-1/3 rounded-full bg-emerald-800/70" />
+          </div>
         )}
 
         {status === 'error' && (
-          <div role="alert" className="rounded-xl border border-red-200 bg-red-50 p-4 text-red-800">
+          <div
+            role="alert"
+            className="rounded-2xl border border-red-400/30 bg-red-500/10 p-4 text-center font-medium text-red-200"
+          >
             {errorMessage}
           </div>
         )}
 
-        {status === 'success' && weather && <WeatherCard data={weather} />}
+        {status === 'success' && data && (
+          <div className="grid gap-6 lg:grid-cols-5">
+            <div className="space-y-6 lg:col-span-3">
+              <CurrentWeather
+                current={data.current}
+                forecast={data.forecast}
+                unit={unit}
+                onUnitChange={setUnit}
+              />
+              <ForecastPanel current={data.current} forecast={data.forecast} unit={unit} />
+            </div>
+            <div className="space-y-6 lg:col-span-2">
+              <Highlights current={data.current} forecast={data.forecast} />
+              <OtherCities
+                cities={history}
+                activeName={data.current.name}
+                unit={unit}
+                onSelect={search}
+              />
+            </div>
+          </div>
+        )}
+
+        {status !== 'success' && (
+          <div className="mt-8">
+            <OtherCities cities={history} activeName="" unit={unit} onSelect={search} />
+          </div>
+        )}
       </div>
     </div>
   )
@@ -298,11 +383,11 @@ export default function Home() {
 
 ### The request finishes
 
-On success we store the weather, add the API's own spelling of the city to the history, and move to `success`. On failure the `catch` block saves a readable message and moves to `error`.
+On success we store the result, save a snapshot of the city in the history, and move to `success`. On failure the `catch` block saves a readable message and moves to `error`.
 
-### The user picks a recent city
+### The user switches units or picks another city
 
-Clicking a recent search calls the same `search` function, so there is only one code path to maintain.
+The `unit` state lives in the page, so one click on **°F** updates every card. Clicking a card in **Other Cities** calls the same `search` function, so there is only one code path to maintain.
 
 </Steps>
 
@@ -310,17 +395,19 @@ Clicking a recent search calls the same `search` function, so there is only one 
   Always keep the **loading** and **error** states. Without them, a slow network shows nothing, and a failed request leaves the user with no explanation.
 </Callout>
 
-## 6. Test every state
+## 5. Test every state
 
 Break the app on purpose to see each state:
 
 | Test | How | What you should see |
 | --- | --- | --- |
-| Success | Search `Lahore` | Weather card with an icon |
+| Success | Search `Lahore` | The main card, highlights, forecast and sunrise times |
+| Units | Click **°F**, then **°C** | Every temperature changes, including the saved cities |
+| Week view | Click **Week** | A list of five days with high and low |
 | 404 | Search `Xyzabc` | "City not found..." |
 | 401 | Put a wrong key in `.env.local`, restart the server, search | "The weather service rejected the API key..." |
 | Network error | Set the network to **Offline** in DevTools | "Network error..." |
-| Loading | Set the network to **Slow 4G** in DevTools | "Loading weather..." |
-| History | Search 3 cities, then refresh the page | The 3 cities remain as buttons |
+| Loading | Set the network to **Slow 4G** in DevTools | A grey placeholder card while loading |
+| History | Search 3 cities, then refresh the page | The saved cities appear as cards under **Other Cities** |
 
-For a full list of errors and fixes, see the [Troubleshooting](/troubleshooting) page.
+For a full list of errors and fixes, see the [Troubleshooting](/troubleshooting) page. To publish your own copy, see [Environment Variables](/setup/env-variables) for how to add the key on Vercel.
